@@ -1,0 +1,123 @@
+name: validate-contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # MODO 1 — Reusable workflow. When another repo calls this via `uses:`,
+  # the `inputs.*` context below is populated (defaults apply too). When THIS
+  # file fires on its native push/pull_request triggers, `inputs.*` is EMPTY,
+  # so every run: that references an input falls back to the literal default
+  # embedded in the `${{ inputs.X || 'literal' }}` expression. That literal
+  # MUST match the value that was hardcoded here before this trigger existed
+  # (see ITEM4-REPORT.md for the equivalence check) — otherwise the KDD repo's
+  # own CI would change behavior on push.
+  workflow_call:
+    inputs:
+      contracts_dir:
+        type: string
+        default: 'knowledge/contracts'
+      specs_dir:
+        type: string
+        default: 'specs'
+      okf_dir:
+        type: string
+        default: 'knowledge'
+      rules_dir:
+        type: string
+        default: 'examples/rules'
+      skills_dirs:
+        type: string
+        # validate_skills.py accepts multiple positional dirs; single input,
+        # space-separated, so the expansion lands as two argv slots.
+        default: 'skills .agents/skills'
+      ux_page_dir:
+        type: string
+        default: 'examples/ux-page'
+      diagrams_dir:
+        type: string
+        default: 'examples/diagrams'
+      src_dir_secrets:
+        type: string
+        default: 'src'
+
+jobs:
+  validate:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js (for the multi-language example contract)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Go (Piel 3, TUI -- tui/go.mod pins 1.26.4)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: tui/go.sum
+
+      - name: Validate contracts
+        run: python scripts/validate_contracts.py ${{ inputs.contracts_dir || 'knowledge/contracts' }}
+
+      - name: "Validate specs contracts"
+        run: python scripts/validate_specs.py ${{ inputs.specs_dir || 'specs' }}
+
+      - name: Validate OKF nodes
+        run: python scripts/validate_okf.py ${{ inputs.okf_dir || 'knowledge' }}
+
+      - name: Lint ASCII scripts
+        run: python scripts/lint_ascii.py scripts
+
+      - name: Validate rule contracts
+        run: python scripts/validate_rules.py ${{ inputs.rules_dir || 'examples/rules' }}
+
+      - name: Validate agent skills
+        run: python scripts/validate_skills.py ${{ inputs.skills_dirs || 'skills .agents/skills' }}
+
+      - name: Validate changelog coherence
+        run: python scripts/validate_changelog.py
+
+      - name: Validate UX/accessibility (HTML pages)
+        run: python scripts/validate_ux_page.py ${{ inputs.ux_page_dir || 'examples/ux-page' }}
+
+      - name: Validate Mermaid diagrams (flowchart)
+        run: python scripts/validate_diagrams.py ${{ inputs.diagrams_dir || 'examples/diagrams' }}
+
+      - name: Run each contract's test_command
+        run: python scripts/validate_test_commands.py ${{ inputs.contracts_dir || 'knowledge/contracts' }} .
+
+      - name: Scan for leaked secrets (src only — see knowledge/contracts/secret-scan-gate.md)
+        run: python scripts/scan_secrets.py ${{ inputs.src_dir_secrets || 'src' }}
+
+      - name: Run unit tests (1/2)
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Run unit tests (2/2)
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Run project test suite (Go, Piel 3 -- TUI)
+        # This step is separate from the two Python steps above on purpose: those
+        # validate the KDD tooling itself (scripts/*.py) and stay Python forever.
+        # THIS step is lazykdd's own project test suite. `go test ./...` from
+        # `tui/` runs 100% pure (the real pipe tests in tui/internal/ui/pipe_test.go
+        # are opt-in via LAZYKDD_RUN_PIPE, unset here on purpose -- they shell out to
+        # `python scripts/kdd_cli.py ...`, which would re-run every gate including
+        # this same test_command, a needless recursive round-trip in CI). The build
+        # step below is the actual end-to-end smoke: it fails loudly if the TUI
+        # doesn't compile.
+        run: |
+          go -C tui test ./...
+          go -C tui build -o lazykdd .
+
+      - name: Assemble context (smoke)
+        run: python scripts/assemble_context.py ccdd/context.json "smoke"
