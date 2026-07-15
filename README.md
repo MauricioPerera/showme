@@ -1,5 +1,7 @@
 # showme
 
+[![validate-contracts](https://github.com/MauricioPerera/showme/actions/workflows/validate.yml/badge.svg)](https://github.com/MauricioPerera/showme/actions/workflows/validate.yml)
+
 A webapp for building AI-assisted presentations. Full product definition,
 architecture and Spanish docs below (see [`CHANGELOG.md`](CHANGELOG.md) for
 release history) — jump to [la versión en español](#español).
