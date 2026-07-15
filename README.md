@@ -1,76 +1,80 @@
 # showme
 
-Proyecto basado en [KDD](https://github.com/MauricioPerera/KDD), usando [`MauricioPerera/lazykdd`](https://github.com/MauricioPerera/lazykdd) como infraestructura operativa.
+Webapp para crear presentaciones asistidas por IA. La persona define el
+objetivo, aporta contexto verificable y elige una identidad visual; `showme`
+propone una estructura de diapositivas, genera el contenido y permite
+revisar, editar, regenerar y exportar el resultado.
 
-TUI + CLI para operar un repo [KDD](https://github.com/MauricioPerera/KDD) (Knowledge-Driven Development) sin memorizar los `scripts/*.py` ni leer texto plano de gates en la consola — la alternativa liviana a una GUI de escritorio, para quien vive en la terminal. Mismo espíritu que `lazygit`/`lazydocker`.
+La IA no decide por sí sola la identidad ni el contexto:
 
-Este proyecto conserva el flujo KDD completo: contratos ejecutables, gates de validación, CLI JSON y TUI. Las decisiones del proyecto están en [`DEFINITION.md`](DEFINITION.md).
+- la **identidad visual** vive en un [`DESIGN.md`](DESIGN.md) versionable
+  (tokens de color, tipografía, espaciado y componentes);
+- el **conocimiento** disponible para redactar cada diapositiva vive en un
+  bundle [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md),
+  con citas obligatorias por afirmación.
 
-## Qué hace
+La definición completa de producto y arquitectura está en
+[`DEFINITION.md`](DEFINITION.md).
 
-- **Correr los gates de Nivel 1** de un repo KDD y ver el resultado (11 gates: `validate_contracts`, `validate_specs`, `validate_okf`, `lint_ascii`, `validate_rules`, `validate_skills`, `validate_changelog`, `validate_ux_page`, `validate_diagrams`, `validate_test_commands`, `scan_secrets`).
-- **Listar y leer** los contratos de `knowledge/contracts/`.
-- **Crear un contrato nuevo** desde la plantilla (`TEMPLATE-task-contract.md`), validando kebab-case y sin sobreescribir nunca uno existente.
-- **Ver el estado de ciclo de vida** de cada contrato: `draft` → `validated` → `implemented` → `verified`.
+## Principios
 
-## Arquitectura: un core, tres pieles
+- La generación es una propuesta; la aprobación final es humana.
+- Toda afirmación factual debe tener una cita o quedar marcada para revisión.
+- La identidad visual se aplica por tokens, nunca por valores sueltos
+  inventados en el prompt.
+- El mismo flujo funciona desde navegador, línea de comandos y agentes de IA.
 
+## Arquitectura
+
+Un core de dominio en Go (decks, slides, validadores, trazabilidad) con tres
+adaptadores delgados que comparten los mismos casos de uso:
+
+```text
+                         +------------------+
+                         |  AI provider(s)  |
+                         +--------+---------+
+                                  |
+ +-------------+          +------v-------+          +----------------+
+ | Webapp Go   |---------->|              |<----------| CLI Go         |
+ | HTML + htmx |           |  showme core |           | human/JSON     |
+ +-------------+          |              |           +----------------+
+                          |  use cases   |
+ +-------------+          |  domain      |           +----------------+
+ | MCP server  |---------->|  ports       |<----------| Storage        |
+ | Go          |           +------+-------+           +----------------+
+ +-------------+                  |
+                         +--------v---------+
+                         | DESIGN.md + OKF |
+                         | validation      |
+                         +------------------+
 ```
-        scripts/mcp_gate_dispatch.py   (Python)
-        lógica pura de despacho de gates
-                    |
-      +-------------+-------------+
-      |             |             |
-   MCP server     CLI --json    (el CLI es lo que consume el TUI)
-   (14 tools)     (kdd_cli.py)
-                      |
-                   TUI (Go + Bubble Tea)
-                   shellea al CLI, parsea JSON,
-                   CERO lógica de KDD propia
-```
 
-El TUI nunca reimplementa un check: siempre shellea al CLI Python y parsea su JSON (misma tradición que `lazygit` shelleando a `git`). Detalle completo en [`DEFINITION.md`](DEFINITION.md).
+- **Webapp**: server-rendered con Go + HTML semántico, `htmx` para
+  actualizaciones parciales.
+- **CLI**: mismo core, salida humana y JSON estable para automatización.
+- **Servidor MCP**: expone los mismos casos de uso a agentes de IA.
 
-## Uso
+Ningún adaptador reimplementa reglas de generación, validación o permisos —
+todo vive en `internal/`.
 
-### CLI (Python, stdlib puro)
+## Estado
+
+En construcción. El core Go (`internal/design`, `internal/knowledge`) ya
+implementa el parser/validador de `DESIGN.md` y el loader/selector de
+contexto sobre bundles OKF. Webapp, CLI y servidor MCP están definidos en
+`DEFINITION.md` pero pendientes de implementación.
+
+## Metodología
+
+Este repo se desarrolla con [KDD](https://github.com/MauricioPerera/KDD)
+(Knowledge-Driven Development): cada capacidad nace como un contrato en
+[`knowledge/contracts/`](knowledge/contracts/) con test-oráculo congelado,
+implementación y verificación antes de mezclarse. Antes de tocar código:
 
 ```bash
-python scripts/kdd_cli.py gates run-all --json
-python scripts/kdd_cli.py contracts list --json
-python scripts/kdd_cli.py contracts scaffold mi-tarea-nueva --json
-python scripts/kdd_cli.py contracts status --json
+python scripts/validate_contracts.py knowledge/contracts
 ```
 
-### TUI (Go)
-
-```bash
-cd tui && go build -o showme .
-cd ..  # el binario asume cwd = raíz del repo KDD
-./tui/showme
-```
-
-| Tecla | Acción |
-|---|---|
-| `g` | panel de gates |
-| `c` | panel de contratos (navegable con ↑/↓) |
-| `Enter` | ver el contenido completo del contrato seleccionado |
-| `Esc` | volver de la vista de detalle |
-| `r` | refrescar ambos paneles |
-| `n` | crear un contrato nuevo (tipear el nombre, `Enter` confirma, `Esc` cancela) |
-| `q` / `Ctrl+C` | salir |
-
-## Estructura del repo
-
-Este repo es una instancia de la [plantilla KDD](https://github.com/MauricioPerera/KDD) — hereda su metodología y su tooling de validación (`scripts/validate_*.py`, `knowledge/contracts/`, `.agents/`). Antes de tocar código: `python scripts/validate_contracts.py knowledge/contracts`.
-
-- `scripts/kdd_cli.py` + `tests/test_kdd_cli.py`: la Piel 2 (CLI).
-- `tui/`: la Piel 3 (TUI), módulo Go independiente (`tui/go.mod`). `tui/internal/kdd/`: parseo puro del JSON del CLI. `tui/internal/ui/`: arquitectura Elm (Bubble Tea) — lógica pura (`UpdateModel`/`View`) separada del wiring de I/O.
-- `knowledge/contracts/`: los task contracts CCDD que gobiernan cada función, con oráculo congelado y sellado por hash.
-- `DEFINITION.md` / `CASE-STUDY-LOG.md`: la definición y el diario del caso de estudio (no son parte de la metodología KDD en sí, son específicos de este proyecto).
-
-## Changelog
-
-<a id="español">
-
-Este README documenta la instancia `showme`; la infraestructura heredada se mantiene para que los gates de KDD sigan siendo reproducibles.
+La infraestructura de gates y contratos (`scripts/`, `.agents/`) se heredó de
+[`lazykdd`](https://github.com/MauricioPerera/lazykdd) y sigue gobernando el
+desarrollo; el producto en sí se construye en Go bajo `internal/`.
