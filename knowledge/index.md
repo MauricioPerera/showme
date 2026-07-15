@@ -41,5 +41,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Versionado de la plantilla (coherencia CHANGELOG/README/upgrade)](./contracts/versioning-plantilla.md)
   - [Ensamblador de contexto CCDD Nivel 2](./contracts/assemble-context.md)
   - [Selector Go de contexto de diapositiva](./contracts/context-selector.md)
+  - [Modelo de dominio Deck/Slide](./contracts/deck-slide-model.md)
+  - [Caso de uso: guardar un Deck](./contracts/save-deck-usecase.md)
   - [Exportador de contratos para el gate CCDD Nivel 2](./contracts/export-gate-contract.md)
   - [Regla de contexto presupuestado en las reglas de agentes](./contracts/agents-context-rule.md)
