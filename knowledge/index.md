@@ -65,6 +65,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Webapp: resolver un slug de URL a un path de proyecto seguro](./contracts/web-project-path.md)
   - [Webapp: handler de proponer un storyboard con IA](./contracts/web-propose-storyboard-handler.md)
   - [Webapp: handler de crear proyecto con multiples slides](./contracts/web-create-project-with-slides-handler.md)
+  - [MCP: tools create_project, list_projects, show_project](./contracts/mcp-showme-tools.md)
   - [CLI: comando project create](./contracts/cli-create-project-command.md)
   - [CLI: comando project list](./contracts/cli-list-projects-command.md)
   - [CLI: comando project show](./contracts/cli-show-project-command.md)
