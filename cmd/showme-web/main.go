@@ -89,9 +89,17 @@ const showPage = `<!doctype html>
 <h1>{{.Project.Name}} (v{{.Project.Version}}){{if .Project.Archived}} [archived]{{end}}</h1>
 <p><a href="/projects">&larr; Volver</a></p>
 <p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
+{{$slug := .Slug}}
 <ul>
 {{range .Project.Deck.Slides}}
-  <li>[{{.Status}}] <strong>{{.Title}}</strong>{{if .Content}}<br>{{.Content}}{{end}}</li>
+  <li>
+    [{{.Status}}] <strong>{{.Title}}</strong>{{if .Content}}<br>{{.Content}}{{end}}
+    <form method="post" action="/projects/view/{{$slug}}/review" style="display:inline">
+      <input type="hidden" name="slide_id" value="{{.ID}}">
+      <button type="submit" name="decision" value="accepted">Aceptar</button>
+      <button type="submit" name="decision" value="rejected">Rechazar</button>
+    </form>
+  </li>
 {{end}}
 </ul>
 </body>
@@ -133,6 +141,9 @@ func main() {
 	})
 	mux.HandleFunc("GET /projects/view/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		handleShowProject(w, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/review", func(w http.ResponseWriter, r *http.Request) {
+		handleReviewSlide(w, r, r.PathValue("slug"), *dir)
 	})
 
 	log.Printf("showme-web listening on %s (data dir: %s)", *addr, *dir)
@@ -201,9 +212,38 @@ func handleShowProject(w http.ResponseWriter, slug, dir string) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := showTemplate.Execute(w, result); err != nil {
+	data := struct {
+		cli.ShowProjectCommandResult
+		Slug string
+	}{ShowProjectCommandResult: result, Slug: slug}
+	if err := showTemplate.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func handleReviewSlide(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err = cli.RunReviewProjectCommand(cli.ReviewProjectCommandInput{
+		Path:     path,
+		SlideID:  r.FormValue("slide_id"),
+		Decision: r.FormValue("decision"),
+		OutDir:   dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
 }
 
 func renderForm(w http.ResponseWriter, result *web.CreateProjectFormResult) {
