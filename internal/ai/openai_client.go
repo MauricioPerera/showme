@@ -61,15 +61,24 @@ func buildPrompt(request GenerateContentRequest) string {
 	return prompt
 }
 
-// GenerateContent implements ContentGenerator by calling the chat
-// completions endpoint and returning the assistant's message content.
-func (c *OpenAIClient) GenerateContent(request GenerateContentRequest) (string, error) {
+func buildStoryboardPrompt(request GenerateStoryboardRequest) string {
+	prompt := fmt.Sprintf("Objetivo: %s\nCantidad de slides: %d", request.Objective, request.Count)
+	if request.Audience != "" {
+		prompt += "\nAudiencia: " + request.Audience
+	}
+	if request.Context != "" {
+		prompt += "\n\nContexto:\n" + request.Context
+	}
+	return prompt
+}
+
+// chatCompletion sends messages to the chat completions endpoint and
+// returns the assistant's message content, shared by GenerateContent and
+// GenerateStoryboard.
+func (c *OpenAIClient) chatCompletion(messages []chatMessage) (string, error) {
 	reqBody := chatCompletionRequest{
-		Model: c.model,
-		Messages: []chatMessage{
-			{Role: "system", Content: "Sos un asistente que escribe el contenido de una diapositiva de una presentacion. Respondé solo con el texto de la diapositiva, sin explicaciones adicionales. Basate exclusivamente en el contexto dado; si el contexto no alcanza, decilo explicitamente en vez de inventar."},
-			{Role: "user", Content: buildPrompt(request)},
-		},
+		Model:              c.model,
+		Messages:           messages,
 		MaxTokens:          defaultMaxTokens,
 		ChatTemplateKwargs: map[string]bool{"enable_thinking": false},
 	}
@@ -98,4 +107,23 @@ func (c *OpenAIClient) GenerateContent(request GenerateContentRequest) (string, 
 	}
 
 	return parsed.Choices[0].Message.Content, nil
+}
+
+// GenerateContent implements ContentGenerator by calling the chat
+// completions endpoint and returning the assistant's message content.
+func (c *OpenAIClient) GenerateContent(request GenerateContentRequest) (string, error) {
+	return c.chatCompletion([]chatMessage{
+		{Role: "system", Content: "Sos un asistente que escribe el contenido de una diapositiva de una presentacion. Respondé solo con el texto de la diapositiva, sin explicaciones adicionales. Basate exclusivamente en el contexto dado; si el contexto no alcanza, decilo explicitamente en vez de inventar."},
+		{Role: "user", Content: buildPrompt(request)},
+	})
+}
+
+// GenerateStoryboard implements StoryboardGenerator by calling the chat
+// completions endpoint and returning the assistant's raw response, which
+// generate-storyboard-usecase parses as a JSON array of slides.
+func (c *OpenAIClient) GenerateStoryboard(request GenerateStoryboardRequest) (string, error) {
+	return c.chatCompletion([]chatMessage{
+		{Role: "system", Content: "Sos un asistente que propone la estructura de una presentacion. Respondé UNICAMENTE con un array JSON valido, sin texto adicional ni bloques de markdown, con el formato exacto [{\"title\": \"...\", \"intent\": \"...\"}, ...]. Basate exclusivamente en el contexto dado; si el contexto no alcanza, decilo en el campo intent en vez de inventar."},
+		{Role: "user", Content: buildStoryboardPrompt(request)},
+	})
 }

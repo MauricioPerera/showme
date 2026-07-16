@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -95,5 +96,56 @@ func TestOpenAIClient_GenerateContent_InvalidJSON(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("expected an error for invalid JSON in the response")
+	}
+}
+
+func TestOpenAIClient_GenerateStoryboard_SendsExpectedRequest(t *testing.T) {
+	var gotBody map[string]any
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if decodeErr := json.NewDecoder(r.Body).Decode(&gotBody); decodeErr != nil {
+			t.Fatalf("failed to decode request body: %v", decodeErr)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"[{\"title\":\"Intro\",\"intent\":\"Bienvenida\"}]"}}]}`))
+	}))
+	defer server.Close()
+
+	client := NewOpenAIClient(server.URL, "test-model")
+
+	raw, err := client.GenerateStoryboard(GenerateStoryboardRequest{
+		Objective: "Presentar el roadmap",
+		Audience:  "Equipo",
+		Count:     3,
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if raw != `[{"title":"Intro","intent":"Bienvenida"}]` {
+		t.Fatalf("expected raw JSON passthrough, got %q", raw)
+	}
+	messages, ok := gotBody["messages"].([]any)
+	if !ok || len(messages) != 2 {
+		t.Fatalf("expected 2 messages (system+user), got %v", gotBody["messages"])
+	}
+	userMsg := messages[1].(map[string]any)
+	if userMsg["content"] == nil || !strings.Contains(userMsg["content"].(string), "Presentar el roadmap") {
+		t.Fatalf("expected objective in the user message, got %v", userMsg["content"])
+	}
+}
+
+func TestOpenAIClient_GenerateStoryboard_NonOKStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewOpenAIClient(server.URL, "some-model")
+
+	_, err := client.GenerateStoryboard(GenerateStoryboardRequest{Objective: "x", Count: 3})
+
+	if err == nil {
+		t.Fatalf("expected an error for a non-200 response")
 	}
 }

@@ -21,6 +21,7 @@ package main
 //	showme project reorder-slides --path <path/to/project.json> --order <id1,id2,...> --out <dir> [--json]
 //	showme project update-info --path <path/to/project.json> --title <title> [--audience <text>] --out <dir> [--json]
 //	showme project generate-slide --path <path/to/project.json> --slide <id> --base-url <ai-base-url> --model <model-name> --out <dir> [--json]
+//	showme project generate-storyboard --objective <text> [--audience <text>] [--knowledge <dir>] --deck-title <title> --count <n> --base-url <ai-base-url> --model <model-name> --out <path/to/deck.json> [--json]
 //	showme project archive --path <path/to/project.json> --out <dir> [--json]
 //	showme project unarchive --path <path/to/project.json> --out <dir> [--json]
 
@@ -47,6 +48,7 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]\n" +
 	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]\n" +
 	"       showme project generate-slide --path <path> --slide <id> --base-url <url> --model <name> --out <dir> [--json]\n" +
+	"       showme project generate-storyboard --objective <text> [--audience <text>] [--knowledge <dir>] --deck-title <title> --count <n> --base-url <url> --model <name> --out <deck.json> [--json]\n" +
 	"       showme project archive --path <path> --out <dir> [--json]\n" +
 	"       showme project unarchive --path <path> --out <dir> [--json]"
 
@@ -83,6 +85,8 @@ func main() {
 		runUpdateDeckInfo(os.Args[3:])
 	case "generate-slide":
 		runGenerateSlide(os.Args[3:])
+	case "generate-storyboard":
+		runGenerateStoryboard(os.Args[3:])
 	case "archive":
 		runArchive(os.Args[3:], true)
 	case "unarchive":
@@ -189,6 +193,10 @@ func runShow(args []string) {
 	fmt.Printf("knowledge: %s\n", proj.KnowledgePath)
 	for _, s := range proj.Deck.Slides {
 		fmt.Printf("- [%s] %s (%s)\n", s.ID, s.Title, s.Status)
+	}
+	if len(proj.Runs) > 0 {
+		last := proj.Runs[len(proj.Runs)-1]
+		fmt.Printf("\n%d generation run(s); last: slide %q via %s at %s\n", len(proj.Runs), last.SlideID, last.Model, last.CreatedAt)
 	}
 }
 
@@ -532,6 +540,49 @@ func runGenerateSlide(args []string) {
 		printJSON(result)
 	} else if result.OK {
 		fmt.Printf("OK: saved to %s\n\n%s\n", result.Path, result.Content)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runGenerateStoryboard(args []string) {
+	fs := flag.NewFlagSet("project generate-storyboard", flag.ExitOnError)
+	objective := fs.String("objective", "", "objective of the presentation")
+	audience := fs.String("audience", "", "audience of the presentation")
+	knowledgeRoot := fs.String("knowledge", "", "optional path to an OKF bundle directory for context")
+	deckTitle := fs.String("deck-title", "", "title for the generated deck")
+	count := fs.Int("count", 0, "number of slides to propose")
+	baseURL := fs.String("base-url", "", "base URL of the OpenAI-compatible AI provider")
+	model := fs.String("model", "", "model name to request from the AI provider")
+	out := fs.String("out", "", "path to the deck JSON file to write")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunGenerateStoryboardCommand(cli.GenerateStoryboardCommandInput{
+		Objective:     *objective,
+		Audience:      *audience,
+		KnowledgeRoot: *knowledgeRoot,
+		DeckTitle:     *deckTitle,
+		Count:         *count,
+		BaseURL:       *baseURL,
+		Model:         *model,
+		OutPath:       *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
 	} else {
 		for _, e := range result.Errors {
 			fmt.Printf("ERROR: %s\n", e)
