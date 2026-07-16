@@ -113,6 +113,11 @@ const showPage = `<!doctype html>
 {{end}}
 <p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
 {{$slug := .Slug}}
+<form method="post" action="/projects/view/{{.Slug}}/generate-all" style="border:1px solid #ccc;padding:8px;display:inline-block">
+  <label>Base URL IA <input type="text" name="base_url" placeholder="http://127.0.0.1:8080/v1" required></label>
+  <label>Modelo <input type="text" name="model" required></label>
+  <button type="submit">Generar todas las slides pendientes</button>
+</form>
 <ul>
 {{range .Project.Deck.Slides}}
   <li>
@@ -121,6 +126,12 @@ const showPage = `<!doctype html>
       <input type="hidden" name="slide_id" value="{{.ID}}">
       <button type="submit" name="decision" value="accepted">Aceptar</button>
       <button type="submit" name="decision" value="rejected">Rechazar</button>
+    </form>
+    <form method="post" action="/projects/view/{{$slug}}/generate" style="display:inline">
+      <input type="hidden" name="slide_id" value="{{.ID}}">
+      <input type="text" name="base_url" placeholder="Base URL IA" required>
+      <input type="text" name="model" placeholder="Modelo" required>
+      <button type="submit">Generar</button>
     </form>
   </li>
 {{end}}
@@ -173,6 +184,12 @@ func main() {
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/archive", func(w http.ResponseWriter, r *http.Request) {
 		handleArchiveProject(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/generate", func(w http.ResponseWriter, r *http.Request) {
+		handleGenerateSlide(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/generate-all", func(w http.ResponseWriter, r *http.Request) {
+		handleGenerateAllSlides(w, r, r.PathValue("slug"), *dir)
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/duplicate", func(w http.ResponseWriter, r *http.Request) {
 		handleDuplicateProject(w, r, r.PathValue("slug"), *dir)
@@ -302,6 +319,75 @@ func handleArchiveProject(w http.ResponseWriter, r *http.Request, slug, dir stri
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleGenerateSlide(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunGenerateSlideContentCommand(cli.GenerateSlideContentCommandInput{
+		Path:    path,
+		SlideID: r.FormValue("slide_id"),
+		BaseURL: r.FormValue("base_url"),
+		Model:   r.FormValue("model"),
+		OutDir:  dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleGenerateAllSlides(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunGenerateAllSlidesCommand(cli.GenerateAllSlidesCommandInput{
+		Path:    path,
+		BaseURL: r.FormValue("base_url"),
+		Model:   r.FormValue("model"),
+		OutDir:  dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
 		return
 	}
 
