@@ -19,7 +19,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/MauricioPerera/showme/internal/cli"
 	"github.com/MauricioPerera/showme/internal/web"
 )
 
@@ -31,6 +34,7 @@ const formPage = `<!doctype html>
 </head>
 <body>
 <h1>Crear presentación</h1>
+<p><a href="/projects">Ver proyectos</a></p>
 {{if .Result}}
   {{if .Result.OK}}
     <p>Proyecto creado: <code>{{.Result.Path}}</code></p>
@@ -54,7 +58,55 @@ const formPage = `<!doctype html>
 </html>
 `
 
+const listPage = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>showme — proyectos</title>
+</head>
+<body>
+<h1>Proyectos</h1>
+<p><a href="/projects/new">Crear proyecto</a></p>
+{{if .Errors}}
+<ul>{{range .Errors}}<li>ERROR: {{.}}</li>{{end}}</ul>
+{{end}}
+<ul>
+{{range .Projects}}
+  <li><a href="/projects/view/{{.Slug}}">{{.Name}}</a>{{if .Archived}} [archived]{{end}}</li>
+{{end}}
+</ul>
+</body>
+</html>
+`
+
+const showPage = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>showme — {{.Project.Name}}</title>
+</head>
+<body>
+<h1>{{.Project.Name}} (v{{.Project.Version}}){{if .Project.Archived}} [archived]{{end}}</h1>
+<p><a href="/projects">&larr; Volver</a></p>
+<p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
+<ul>
+{{range .Project.Deck.Slides}}
+  <li>[{{.Status}}] <strong>{{.Title}}</strong>{{if .Content}}<br>{{.Content}}{{end}}</li>
+{{end}}
+</ul>
+</body>
+</html>
+`
+
 var formTemplate = template.Must(template.New("form").Parse(formPage))
+var listTemplate = template.Must(template.New("list").Parse(listPage))
+var showTemplate = template.Must(template.New("show").Parse(showPage))
+
+type projectListEntry struct {
+	Name     string
+	Slug     string
+	Archived bool
+}
 
 func main() {
 	dir := flag.String("dir", "", "directory where created projects are saved (required)")
@@ -75,6 +127,12 @@ func main() {
 	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/projects/new", http.StatusFound)
+	})
+	mux.HandleFunc("GET /projects", func(w http.ResponseWriter, r *http.Request) {
+		handleListProjects(w, *dir)
+	})
+	mux.HandleFunc("GET /projects/view/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		handleShowProject(w, r.PathValue("slug"), *dir)
 	})
 
 	log.Printf("showme-web listening on %s (data dir: %s)", *addr, *dir)
@@ -103,6 +161,49 @@ func handleCreateProject(w http.ResponseWriter, r *http.Request, dir string) {
 	}
 
 	renderForm(w, &result)
+}
+
+func handleListProjects(w http.ResponseWriter, dir string) {
+	result, err := cli.RunListProjectsCommand(cli.ListProjectsCommandInput{Dir: dir})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	entries := make([]projectListEntry, len(result.Projects))
+	for i, p := range result.Projects {
+		base := filepath.Base(p.Path)
+		slug := strings.TrimSuffix(base, filepath.Ext(base))
+		entries[i] = projectListEntry{Name: p.Name, Slug: slug, Archived: p.Archived}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := struct {
+		Projects []projectListEntry
+		Errors   []string
+	}{Projects: entries, Errors: result.Errors}
+	if err := listTemplate.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleShowProject(w http.ResponseWriter, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+	if err != nil {
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := showTemplate.Execute(w, result); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func renderForm(w http.ResponseWriter, result *web.CreateProjectFormResult) {
