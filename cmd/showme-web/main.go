@@ -133,9 +133,19 @@ const showPage = `<!doctype html>
       <input type="text" name="model" placeholder="Modelo" required>
       <button type="submit">Generar</button>
     </form>
+    <form method="post" action="/projects/view/{{$slug}}/remove-slide" style="display:inline">
+      <input type="hidden" name="slide_id" value="{{.ID}}">
+      <button type="submit">Quitar</button>
+    </form>
   </li>
 {{end}}
 </ul>
+<form method="post" action="/projects/view/{{.Slug}}/add-slide" style="border:1px solid #ccc;padding:8px;display:inline-block">
+  <label>ID <input type="text" name="slide_id" required></label>
+  <label>Título <input type="text" name="title" required></label>
+  <label>Intent <input type="text" name="intent"></label>
+  <button type="submit">Agregar slide</button>
+</form>
 </body>
 </html>
 `
@@ -190,6 +200,12 @@ func main() {
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/generate-all", func(w http.ResponseWriter, r *http.Request) {
 		handleGenerateAllSlides(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/add-slide", func(w http.ResponseWriter, r *http.Request) {
+		handleAddSlide(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/remove-slide", func(w http.ResponseWriter, r *http.Request) {
+		handleRemoveSlide(w, r, r.PathValue("slug"), *dir)
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/duplicate", func(w http.ResponseWriter, r *http.Request) {
 		handleDuplicateProject(w, r, r.PathValue("slug"), *dir)
@@ -375,6 +391,74 @@ func handleGenerateAllSlides(w http.ResponseWriter, r *http.Request, slug, dir s
 		Path:    path,
 		BaseURL: r.FormValue("base_url"),
 		Model:   r.FormValue("model"),
+		OutDir:  dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleAddSlide(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunAddSlideCommand(cli.AddSlideCommandInput{
+		Path:    path,
+		SlideID: r.FormValue("slide_id"),
+		Title:   r.FormValue("title"),
+		Intent:  r.FormValue("intent"),
+		OutDir:  dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleRemoveSlide(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunRemoveSlideCommand(cli.RemoveSlideCommandInput{
+		Path:    path,
+		SlideID: r.FormValue("slide_id"),
 		OutDir:  dir,
 	})
 	if err != nil {
