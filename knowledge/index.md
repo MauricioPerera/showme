@@ -42,6 +42,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Ensamblador de contexto CCDD Nivel 2](./contracts/assemble-context.md)
   - [Selector Go de contexto de diapositiva](./contracts/context-selector.md)
   - [Modelo de dominio Deck/Slide](./contracts/deck-slide-model.md)
+  - [Modelo de dominio Project](./contracts/project-model.md)
   - [Caso de uso: guardar un Deck](./contracts/save-deck-usecase.md)
   - [Caso de uso: cargar un Deck](./contracts/load-deck-usecase.md)
   - [Caso de uso: listar Decks guardados](./contracts/list-decks-usecase.md)
