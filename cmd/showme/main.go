@@ -16,12 +16,14 @@ package main
 //	showme project add-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 //	showme project remove-slide --path <path/to/project.json> --slide <id> --out <dir> [--json]
 //	showme project update-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
+//	showme project reorder-slides --path <path/to/project.json> --order <id1,id2,...> --out <dir> [--json]
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/MauricioPerera/showme/internal/cli"
 )
@@ -33,7 +35,8 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]\n" +
 	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
 	"       showme project remove-slide --path <path> --slide <id> --out <dir> [--json]\n" +
-	"       showme project update-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]"
+	"       showme project update-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
+	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -58,6 +61,8 @@ func main() {
 		runRemoveSlide(os.Args[3:])
 	case "update-slide":
 		runUpdateSlide(os.Args[3:])
+	case "reorder-slides":
+		runReorderSlides(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -319,6 +324,44 @@ func runUpdateSlide(args []string) {
 		Content: *content,
 		Status:  *status,
 		OutDir:  *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runReorderSlides(args []string) {
+	fs := flag.NewFlagSet("project reorder-slides", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	order := fs.String("order", "", "comma-separated list of every slide id in the desired order")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	var orderList []string
+	if *order != "" {
+		orderList = strings.Split(*order, ",")
+	}
+
+	result, err := cli.RunReorderSlidesCommand(cli.ReorderSlidesCommandInput{
+		Path:   *path,
+		Order:  orderList,
+		OutDir: *out,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
