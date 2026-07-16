@@ -63,6 +63,8 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [CLI: comando project generate-all](./contracts/cli-generate-all-slides-command.md)
   - [Webapp: handler del formulario crear proyecto](./contracts/web-create-project-handler.md)
   - [Webapp: resolver un slug de URL a un path de proyecto seguro](./contracts/web-project-path.md)
+  - [Webapp: handler de proponer un storyboard con IA](./contracts/web-propose-storyboard-handler.md)
+  - [Webapp: handler de crear proyecto con multiples slides](./contracts/web-create-project-with-slides-handler.md)
   - [CLI: comando project create](./contracts/cli-create-project-command.md)
   - [CLI: comando project list](./contracts/cli-list-projects-command.md)
   - [CLI: comando project show](./contracts/cli-show-project-command.md)
