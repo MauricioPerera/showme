@@ -49,6 +49,8 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [CLI: comando project create](./contracts/cli-create-project-command.md)
   - [CLI: comando project list](./contracts/cli-list-projects-command.md)
   - [CLI: comando project show](./contracts/cli-show-project-command.md)
+  - [CLI: comando project duplicate](./contracts/cli-duplicate-project-command.md)
+  - [CLI: comando project review](./contracts/cli-review-project-command.md)
   - [Caso de uso: guardar un Project](./contracts/save-project-usecase.md)
   - [Caso de uso: cargar un Project](./contracts/load-project-usecase.md)
   - [Caso de uso: duplicar un Project](./contracts/duplicate-project-usecase.md)

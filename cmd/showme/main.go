@@ -11,6 +11,8 @@ package main
 //	    --out <output/dir> [--json]
 //	showme project list --dir <output/dir> [--json]
 //	showme project show --path <path/to/project.json> [--json]
+//	showme project duplicate --source <path/to/project.json> --name <new-name> --out <dir> [--json]
+//	showme project review --path <path/to/project.json> --slide <id> --decision <accepted|edited|rejected> [--notes <text>] --out <dir> [--json]
 
 import (
 	"encoding/json"
@@ -23,7 +25,9 @@ import (
 
 const usage = "usage: showme project create --name <name> --design <path> --knowledge <dir> --deck <path> --out <dir> [--json]\n" +
 	"       showme project list --dir <dir> [--json]\n" +
-	"       showme project show --path <path> [--json]"
+	"       showme project show --path <path> [--json]\n" +
+	"       showme project duplicate --source <path> --name <new-name> --out <dir> [--json]\n" +
+	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -38,6 +42,10 @@ func main() {
 		runList(os.Args[3:])
 	case "show":
 		runShow(os.Args[3:])
+	case "duplicate":
+		runDuplicate(os.Args[3:])
+	case "review":
+		runReview(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -132,6 +140,76 @@ func runShow(args []string) {
 	fmt.Printf("knowledge: %s\n", proj.KnowledgePath)
 	for _, s := range proj.Deck.Slides {
 		fmt.Printf("- [%s] %s (%s)\n", s.ID, s.Title, s.Status)
+	}
+}
+
+func runDuplicate(args []string) {
+	fs := flag.NewFlagSet("project duplicate", flag.ExitOnError)
+	source := fs.String("source", "", "path to the project to duplicate")
+	name := fs.String("name", "", "name for the duplicated project")
+	out := fs.String("out", "", "directory to save the duplicate")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunDuplicateProjectCommand(cli.DuplicateProjectCommandInput{
+		SourcePath: *source,
+		NewName:    *name,
+		OutDir:     *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runReview(args []string) {
+	fs := flag.NewFlagSet("project review", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to review")
+	slide := fs.String("slide", "", "slide id being reviewed")
+	decision := fs.String("decision", "", "accepted, edited or rejected")
+	notes := fs.String("notes", "", "optional free-text notes")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunReviewProjectCommand(cli.ReviewProjectCommandInput{
+		Path:     *path,
+		SlideID:  *slide,
+		Decision: *decision,
+		Notes:    *notes,
+		OutDir:   *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
 	}
 }
 
