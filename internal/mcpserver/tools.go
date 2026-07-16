@@ -1,9 +1,11 @@
-// Package mcpserver exposes showme's core use cases as MCP tools, reusing
+// Package mcpserver exposes showme's use cases as MCP tools, reusing
 // internal/cli's already-contracted command functions directly -- this
 // package only translates MCP tool-call arguments into their inputs and
 // their results into JSON-encoded tool results, the same "adapter, not a
 // second implementation" principle DEFINITION.md requires of every
-// adapter (CLI, webapp, MCP) over the core.
+// adapter (CLI, webapp, MCP) over the core. Tools() aggregates this
+// file's create/list/show tools with SlideTools, ProjectManagementTools
+// and AITools.
 //
 // This is the one package in the repo whose deps_allowed is not empty: it
 // imports github.com/mark3labs/mcp-go, the project's first external Go
@@ -29,12 +31,22 @@ func jsonResult(v any) *mcp.CallToolResult {
 	return mcp.NewToolResultText(string(encoded))
 }
 
-// Tools returns the MCP tools showme exposes to agents: create_project,
-// list_projects and show_project. Each handler validates its required
-// arguments, delegates to the matching cli.RunXCommand, and returns the
-// result JSON-encoded (mirroring the CLI's --json output) or, on a
-// file-system error from the command, an MCP tool error.
+// Tools returns every MCP tool showme exposes to agents: project
+// creation/listing/inspection (this file), slide/deck editing
+// (SlideTools), whole-project management (ProjectManagementTools) and AI
+// generation (AITools). Each handler validates its required arguments,
+// delegates to the matching cli.RunXCommand, and returns the result
+// JSON-encoded (mirroring the CLI's --json output) or, on a file-system
+// error from the command, an MCP tool error.
 func Tools() []server.ServerTool {
+	tools := coreProjectTools()
+	tools = append(tools, SlideTools()...)
+	tools = append(tools, ProjectManagementTools()...)
+	tools = append(tools, AITools()...)
+	return tools
+}
+
+func coreProjectTools() []server.ServerTool {
 	return []server.ServerTool{
 		{
 			Tool: mcp.NewTool("create_project",

@@ -5,7 +5,7 @@ description: 'Expone los casos de uso principales de showme como tools MCP, reus
 tags: ['showme', 'go', 'mcp', 'agent']
 
 task: mcp-showme-tools
-intent: "Exponer create_project, list_projects y show_project como tools MCP sobre los comandos ya existentes de internal/cli."
+intent: "Exponer create_project, list_projects y show_project como tools MCP, y agregar SlideTools/ProjectManagementTools/AITools en Tools()."
 target: internal/mcpserver/tools.go
 signature: "func Tools() []server.ServerTool"
 test_command: "go test ./internal/mcpserver"
@@ -16,7 +16,7 @@ budget:
   cyclomatic_max: 8
   nesting_max: 3
   params_max: 0
-  lines_max: 120
+  lines_max: 140
 tests: internal/mcpserver/tools_test.go
 tests_sha256: "0ff4ee54746d60a285137ea23a6d23585e03f69ec1954413c2fb1411b3d24d3c"
 touch_only: ['internal/mcpserver/tools.go']
@@ -47,12 +47,22 @@ depender de esta libreria.
 func Tools() []server.ServerTool
 ```
 
+`Tools()` concatena las tools de creacion/listado/inspeccion de este
+archivo (`coreProjectTools`) con
+[mcp-showme-slide-tools](./mcp-showme-slide-tools.md),
+[mcp-showme-project-management-tools](./mcp-showme-project-management-tools.md)
+y [mcp-showme-ai-tools](./mcp-showme-ai-tools.md).
+
 Cada `server.ServerTool` define un `mcp.Tool` (nombre, descripcion,
 parametros string requeridos) y un `Handler` que:
 1. Extrae los argumentos requeridos con `request.RequireString`.
 2. Llama al `cli.RunXCommand` correspondiente.
 3. Devuelve el resultado JSON-encoded via `mcp.NewToolResultText`, o un
-   `mcp.NewToolResultErrorFromErr` si el comando falla.
+   `mcp.NewToolResultErrorFromErr` si el comando falla por un error de
+   archivo/E-S; los errores de validacion del comando (`Errors` no vacio,
+   `err` nil) se devuelven igual como resultado exitoso, con `OK: false`
+   en el JSON -- el cliente MCP debe inspeccionar `OK`/`Errors`, no solo
+   `IsError`.
 
 ## Invariants
 
