@@ -44,6 +44,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Modelo de dominio Deck/Slide](./contracts/deck-slide-model.md)
   - [Modelo de dominio Project](./contracts/project-model.md)
   - [Modelo de dominio Review](./contracts/review-model.md)
+  - [Caso de uso: aplicar una Review a un Deck](./contracts/apply-review-usecase.md)
   - [Caso de uso: crear un Project](./contracts/create-project-usecase.md)
   - [Caso de uso: guardar un Project](./contracts/save-project-usecase.md)
   - [Caso de uso: cargar un Project](./contracts/load-project-usecase.md)
