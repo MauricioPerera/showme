@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/MauricioPerera/showme/internal/cli"
+	"github.com/MauricioPerera/showme/internal/domain"
 	"github.com/MauricioPerera/showme/internal/export"
 	"github.com/MauricioPerera/showme/internal/storage"
 	"github.com/MauricioPerera/showme/internal/web"
@@ -111,7 +112,17 @@ const showPage = `<!doctype html>
 {{if .Errors}}
 <ul>{{range .Errors}}<li>ERROR: {{.}}</li>{{end}}</ul>
 {{end}}
-<p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
+<form method="post" action="/projects/view/{{.Slug}}/update-info" style="border:1px solid #ccc;padding:8px;display:inline-block">
+  <label>Título del deck<br><input type="text" name="title" value="{{.Project.Deck.Title}}" required></label>
+  <label>Audiencia<br><input type="text" name="audience" value="{{.Project.Deck.Audience}}"></label>
+  <button type="submit">Actualizar info</button>
+</form>
+<form method="post" action="/projects/view/{{.Slug}}/reorder-slides" style="border:1px solid #ccc;padding:8px;display:inline-block">
+  <label>Orden de slides (IDs separados por coma)<br>
+    <input type="text" name="order" value="{{slideIDs .Project.Deck.Slides}}" size="60" required>
+  </label>
+  <button type="submit">Reordenar</button>
+</form>
 {{$slug := .Slug}}
 <form method="post" action="/projects/view/{{.Slug}}/generate-all" style="border:1px solid #ccc;padding:8px;display:inline-block">
   <label>Base URL IA <input type="text" name="base_url" placeholder="http://127.0.0.1:8080/v1" required></label>
@@ -170,7 +181,15 @@ const showPage = `<!doctype html>
 
 var formTemplate = template.Must(template.New("form").Parse(formPage))
 var listTemplate = template.Must(template.New("list").Parse(listPage))
-var showTemplate = template.Must(template.New("show").Parse(showPage))
+var showTemplate = template.Must(template.New("show").Funcs(template.FuncMap{
+	"slideIDs": func(slides []domain.Slide) string {
+		ids := make([]string, len(slides))
+		for i, s := range slides {
+			ids[i] = s.ID
+		}
+		return strings.Join(ids, ",")
+	},
+}).Parse(showPage))
 
 type projectListEntry struct {
 	Name     string
@@ -227,6 +246,12 @@ func main() {
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/update-slide", func(w http.ResponseWriter, r *http.Request) {
 		handleUpdateSlide(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/update-info", func(w http.ResponseWriter, r *http.Request) {
+		handleUpdateDeckInfo(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/reorder-slides", func(w http.ResponseWriter, r *http.Request) {
+		handleReorderSlides(w, r, r.PathValue("slug"), *dir)
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/duplicate", func(w http.ResponseWriter, r *http.Request) {
 		handleDuplicateProject(w, r, r.PathValue("slug"), *dir)
@@ -518,6 +543,78 @@ func handleUpdateSlide(w http.ResponseWriter, r *http.Request, slug, dir string)
 		Content: r.FormValue("content"),
 		Status:  r.FormValue("status"),
 		OutDir:  dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleUpdateDeckInfo(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunUpdateDeckInfoCommand(cli.UpdateDeckInfoCommandInput{
+		Path:     path,
+		Title:    r.FormValue("title"),
+		Audience: r.FormValue("audience"),
+		OutDir:   dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleReorderSlides(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var order []string
+	if raw := r.FormValue("order"); raw != "" {
+		order = strings.Split(raw, ",")
+	}
+
+	result, err := cli.RunReorderSlidesCommand(cli.ReorderSlidesCommandInput{
+		Path:   path,
+		Order:  order,
+		OutDir: dir,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
