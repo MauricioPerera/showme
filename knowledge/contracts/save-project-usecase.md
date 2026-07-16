@@ -63,6 +63,9 @@ func SaveProject(request SaveProjectRequest) (path string, report domain.Report,
   nunca por `Report`.
 - La funcion no crea directorios: `Dir` debe existir de antemano.
 - No hace red, subprocess ni llamadas a un proveedor de IA.
+- El slug se calcula con `storage.Slugify` (exportada para que otros casos
+  de uso, ej. `rename-project-usecase`, puedan predecir el path resultante
+  de un `Name` antes de guardar).
 
 ## Examples
 

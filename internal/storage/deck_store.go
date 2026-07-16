@@ -12,7 +12,9 @@ import (
 
 var nonSlugChars = regexp.MustCompile(`[^a-z0-9]+`)
 
-func slugify(title string) string {
+// Slugify converts an arbitrary title/name into the deterministic
+// lowercase-hyphenated slug used for a saved file's basename.
+func Slugify(title string) string {
 	lower := strings.ToLower(title)
 	slug := nonSlugChars.ReplaceAllString(lower, "-")
 	return strings.Trim(slug, "-")
@@ -35,7 +37,7 @@ func SaveDeck(request SaveDeckRequest) (string, domain.Report, error) {
 		return "", report, nil
 	}
 
-	slug := slugify(deck.Title)
+	slug := Slugify(deck.Title)
 	if slug == "" {
 		report.Errors = append(report.Errors, "title produces an empty slug")
 		return "", report, nil

@@ -12,6 +12,7 @@ package main
 //	showme project list --dir <output/dir> [--json]
 //	showme project show --path <path/to/project.json> [--json]
 //	showme project duplicate --source <path/to/project.json> --name <new-name> --out <dir> [--json]
+//	showme project rename --source <path/to/project.json> --name <new-name> --out <dir> [--json]
 //	showme project review --path <path/to/project.json> --slide <id> --decision <accepted|edited|rejected> [--notes <text>] --out <dir> [--json]
 //	showme project add-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 //	showme project remove-slide --path <path/to/project.json> --slide <id> --out <dir> [--json]
@@ -35,6 +36,7 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project list --dir <dir> [--json]\n" +
 	"       showme project show --path <path> [--json]\n" +
 	"       showme project duplicate --source <path> --name <new-name> --out <dir> [--json]\n" +
+	"       showme project rename --source <path> --name <new-name> --out <dir> [--json]\n" +
 	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]\n" +
 	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
 	"       showme project remove-slide --path <path> --slide <id> --out <dir> [--json]\n" +
@@ -59,6 +61,8 @@ func main() {
 		runShow(os.Args[3:])
 	case "duplicate":
 		runDuplicate(os.Args[3:])
+	case "rename":
+		runRename(os.Args[3:])
 	case "review":
 		runReview(os.Args[3:])
 	case "add-slide":
@@ -189,6 +193,39 @@ func runDuplicate(args []string) {
 	_ = fs.Parse(args)
 
 	result, err := cli.RunDuplicateProjectCommand(cli.DuplicateProjectCommandInput{
+		SourcePath: *source,
+		NewName:    *name,
+		OutDir:     *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runRename(args []string) {
+	fs := flag.NewFlagSet("project rename", flag.ExitOnError)
+	source := fs.String("source", "", "path to the project to rename")
+	name := fs.String("name", "", "new name for the project")
+	out := fs.String("out", "", "directory to save the renamed project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunRenameProjectCommand(cli.RenameProjectCommandInput{
 		SourcePath: *source,
 		NewName:    *name,
 		OutDir:     *out,

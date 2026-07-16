@@ -26,7 +26,7 @@ func SaveProject(request SaveProjectRequest) (string, domain.Report, error) {
 		return "", report, nil
 	}
 
-	slug := slugify(proj.Name)
+	slug := Slugify(proj.Name)
 	if slug == "" {
 		report.Errors = append(report.Errors, "name produces an empty slug")
 		return "", report, nil
