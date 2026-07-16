@@ -9,6 +9,7 @@ package main
 //	showme project create --name <name> --design <path/to/DESIGN.md> \
 //	    --knowledge <path/to/okf/bundle> --deck <path/to/deck.json> \
 //	    --out <output/dir> [--json]
+//	showme project list --dir <output/dir> [--json]
 
 import (
 	"encoding/json"
@@ -19,12 +20,27 @@ import (
 	"github.com/MauricioPerera/showme/internal/cli"
 )
 
+const usage = "usage: showme project create --name <name> --design <path> --knowledge <dir> --deck <path> --out <dir> [--json]\n" +
+	"       showme project list --dir <dir> [--json]"
+
 func main() {
-	if len(os.Args) < 3 || os.Args[1] != "project" || os.Args[2] != "create" {
-		fmt.Fprintln(os.Stderr, "usage: showme project create --name <name> --design <path> --knowledge <dir> --deck <path> --out <dir> [--json]")
+	if len(os.Args) < 3 || os.Args[1] != "project" {
+		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
 	}
 
+	switch os.Args[2] {
+	case "create":
+		runCreate(os.Args[3:])
+	case "list":
+		runList(os.Args[3:])
+	default:
+		fmt.Fprintln(os.Stderr, usage)
+		os.Exit(1)
+	}
+}
+
+func runCreate(args []string) {
 	fs := flag.NewFlagSet("project create", flag.ExitOnError)
 	name := fs.String("name", "", "project name")
 	design := fs.String("design", "", "path to DESIGN.md")
@@ -32,7 +48,7 @@ func main() {
 	deck := fs.String("deck", "", "path to a deck JSON file")
 	out := fs.String("out", "", "directory to save the project")
 	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
-	_ = fs.Parse(os.Args[3:])
+	_ = fs.Parse(args)
 
 	result, err := cli.RunCreateProjectCommand(cli.CreateProjectCommandInput{
 		Name:          *name,
@@ -47,8 +63,7 @@ func main() {
 	}
 
 	if *asJSON {
-		encoded, _ := json.MarshalIndent(result, "", "  ")
-		fmt.Println(string(encoded))
+		printJSON(result)
 	} else if result.OK {
 		fmt.Printf("OK: saved to %s\n", result.Path)
 		for _, w := range result.Warnings {
@@ -63,4 +78,34 @@ func main() {
 	if !result.OK {
 		os.Exit(1)
 	}
+}
+
+func runList(args []string) {
+	fs := flag.NewFlagSet("project list", flag.ExitOnError)
+	dir := fs.String("dir", "", "directory containing saved projects")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunListProjectsCommand(cli.ListProjectsCommandInput{Dir: *dir})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+		return
+	}
+
+	for _, p := range result.Projects {
+		fmt.Printf("%s\t%s\n", p.Name, p.Path)
+	}
+	for _, e := range result.Errors {
+		fmt.Printf("ERROR: %s\n", e)
+	}
+}
+
+func printJSON(v any) {
+	encoded, _ := json.MarshalIndent(v, "", "  ")
+	fmt.Println(string(encoded))
 }

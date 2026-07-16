@@ -47,6 +47,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Caso de uso: aplicar una Review a un Deck](./contracts/apply-review-usecase.md)
   - [Caso de uso: crear un Project](./contracts/create-project-usecase.md)
   - [CLI: comando project create](./contracts/cli-create-project-command.md)
+  - [CLI: comando project list](./contracts/cli-list-projects-command.md)
   - [Caso de uso: guardar un Project](./contracts/save-project-usecase.md)
   - [Caso de uso: cargar un Project](./contracts/load-project-usecase.md)
   - [Caso de uso: duplicar un Project](./contracts/duplicate-project-usecase.md)
