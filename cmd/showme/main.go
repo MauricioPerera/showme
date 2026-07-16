@@ -10,6 +10,7 @@ package main
 //	    --knowledge <path/to/okf/bundle> --deck <path/to/deck.json> \
 //	    --out <output/dir> [--json]
 //	showme project list --dir <output/dir> [--json]
+//	showme project show --path <path/to/project.json> [--json]
 
 import (
 	"encoding/json"
@@ -21,7 +22,8 @@ import (
 )
 
 const usage = "usage: showme project create --name <name> --design <path> --knowledge <dir> --deck <path> --out <dir> [--json]\n" +
-	"       showme project list --dir <dir> [--json]"
+	"       showme project list --dir <dir> [--json]\n" +
+	"       showme project show --path <path> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -34,6 +36,8 @@ func main() {
 		runCreate(os.Args[3:])
 	case "list":
 		runList(os.Args[3:])
+	case "show":
+		runShow(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -102,6 +106,32 @@ func runList(args []string) {
 	}
 	for _, e := range result.Errors {
 		fmt.Printf("ERROR: %s\n", e)
+	}
+}
+
+func runShow(args []string) {
+	fs := flag.NewFlagSet("project show", flag.ExitOnError)
+	path := fs.String("path", "", "path to a saved project JSON file")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: *path})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+		return
+	}
+
+	proj := result.Project
+	fmt.Printf("%s (v%d)\n", proj.Name, proj.Version)
+	fmt.Printf("design: %s\n", proj.DesignPath)
+	fmt.Printf("knowledge: %s\n", proj.KnowledgePath)
+	for _, s := range proj.Deck.Slides {
+		fmt.Printf("- [%s] %s (%s)\n", s.ID, s.Title, s.Status)
 	}
 }
 
