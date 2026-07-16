@@ -14,6 +14,7 @@ package main
 //	showme project duplicate --source <path/to/project.json> --name <new-name> --out <dir> [--json]
 //	showme project review --path <path/to/project.json> --slide <id> --decision <accepted|edited|rejected> [--notes <text>] --out <dir> [--json]
 //	showme project add-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
+//	showme project remove-slide --path <path/to/project.json> --slide <id> --out <dir> [--json]
 
 import (
 	"encoding/json"
@@ -29,7 +30,8 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project show --path <path> [--json]\n" +
 	"       showme project duplicate --source <path> --name <new-name> --out <dir> [--json]\n" +
 	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]\n" +
-	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]"
+	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
+	"       showme project remove-slide --path <path> --slide <id> --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -50,6 +52,8 @@ func main() {
 		runReview(os.Args[3:])
 	case "add-slide":
 		runAddSlide(os.Args[3:])
+	case "remove-slide":
+		runRemoveSlide(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -236,6 +240,39 @@ func runAddSlide(args []string) {
 		Intent:  *intent,
 		Content: *content,
 		Status:  *status,
+		OutDir:  *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runRemoveSlide(args []string) {
+	fs := flag.NewFlagSet("project remove-slide", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	slide := fs.String("slide", "", "id of the slide to remove")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunRemoveSlideCommand(cli.RemoveSlideCommandInput{
+		Path:    *path,
+		SlideID: *slide,
 		OutDir:  *out,
 	})
 	if err != nil {
