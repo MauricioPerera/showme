@@ -11,6 +11,7 @@ package main
 //	    --out <output/dir> [--json]
 //	showme project list --dir <output/dir> [--json]
 //	showme project show --path <path/to/project.json> [--json]
+//	showme project export --path <path/to/project.json> --out <path/to/output.html> [--json]
 //	showme project duplicate --source <path/to/project.json> --name <new-name> --out <dir> [--json]
 //	showme project rename --source <path/to/project.json> --name <new-name> --out <dir> [--json]
 //	showme project review --path <path/to/project.json> --slide <id> --decision <accepted|edited|rejected> [--notes <text>] --out <dir> [--json]
@@ -35,6 +36,7 @@ import (
 const usage = "usage: showme project create --name <name> --design <path> --knowledge <dir> --deck <path> --out <dir> [--json]\n" +
 	"       showme project list --dir <dir> [--json]\n" +
 	"       showme project show --path <path> [--json]\n" +
+	"       showme project export --path <path> --out <output.html> [--json]\n" +
 	"       showme project duplicate --source <path> --name <new-name> --out <dir> [--json]\n" +
 	"       showme project rename --source <path> --name <new-name> --out <dir> [--json]\n" +
 	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]\n" +
@@ -59,6 +61,8 @@ func main() {
 		runList(os.Args[3:])
 	case "show":
 		runShow(os.Args[3:])
+	case "export":
+		runExport(os.Args[3:])
 	case "duplicate":
 		runDuplicate(os.Args[3:])
 	case "rename":
@@ -181,6 +185,29 @@ func runShow(args []string) {
 	fmt.Printf("knowledge: %s\n", proj.KnowledgePath)
 	for _, s := range proj.Deck.Slides {
 		fmt.Printf("- [%s] %s (%s)\n", s.ID, s.Title, s.Status)
+	}
+}
+
+func runExport(args []string) {
+	fs := flag.NewFlagSet("project export", flag.ExitOnError)
+	path := fs.String("path", "", "path to a saved project JSON file")
+	out := fs.String("out", "", "path to the HTML file to write")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunExportProjectCommand(cli.ExportProjectCommandInput{
+		Path:    *path,
+		OutPath: *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else {
+		fmt.Printf("OK: exported to %s\n", result.Path)
 	}
 }
 
