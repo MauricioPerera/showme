@@ -91,6 +91,15 @@ const showPage = `<!doctype html>
 <h1>{{.Project.Name}} (v{{.Project.Version}}){{if .Project.Archived}} [archived]{{end}}</h1>
 <p><a href="/projects">&larr; Volver</a></p>
 <p><a href="/projects/view/{{.Slug}}/export">Exportar a HTML</a></p>
+<form method="post" action="/projects/view/{{.Slug}}/archive" style="display:inline">
+  {{if .Project.Archived}}
+    <input type="hidden" name="archived" value="false">
+    <button type="submit">Desarchivar</button>
+  {{else}}
+    <input type="hidden" name="archived" value="true">
+    <button type="submit">Archivar</button>
+  {{end}}
+</form>
 <p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
 {{$slug := .Slug}}
 <ul>
@@ -150,6 +159,9 @@ func main() {
 	})
 	mux.HandleFunc("GET /projects/view/{slug}/export", func(w http.ResponseWriter, r *http.Request) {
 		handleExportProject(w, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/archive", func(w http.ResponseWriter, r *http.Request) {
+		handleArchiveProject(w, r, r.PathValue("slug"), *dir)
 	})
 
 	log.Printf("showme-web listening on %s (data dir: %s)", *addr, *dir)
@@ -242,6 +254,30 @@ func handleReviewSlide(w http.ResponseWriter, r *http.Request, slug, dir string)
 		Path:     path,
 		SlideID:  r.FormValue("slide_id"),
 		Decision: r.FormValue("decision"),
+		OutDir:   dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleArchiveProject(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err = cli.RunArchiveProjectCommand(cli.ArchiveProjectCommandInput{
+		Path:     path,
+		Archived: r.FormValue("archived") == "true",
 		OutDir:   dir,
 	})
 	if err != nil {
