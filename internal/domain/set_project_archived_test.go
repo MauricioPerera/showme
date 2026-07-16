@@ -40,6 +40,23 @@ func TestSetProjectArchived_ToFalse(t *testing.T) {
 	}
 }
 
+func TestSetProjectArchived_PreservesRuns(t *testing.T) {
+	proj := validProjectForArchiving(t)
+	run, runReport := NewGenerationRun(GenerationRunInput{
+		SlideID: "intro", Model: "m", Output: "o", CreatedAt: "2026-07-16T12:00:00Z",
+	})
+	if len(runReport.Errors) != 0 {
+		t.Fatalf("setup: unexpected run errors: %v", runReport.Errors)
+	}
+	proj = AppendGenerationRun(AppendGenerationRunInput{Project: proj, Run: run})
+
+	updated := SetProjectArchived(SetProjectArchivedInput{Project: proj, Archived: true})
+
+	if len(updated.Runs) != 1 {
+		t.Fatalf("expected Runs preserved, got %+v", updated.Runs)
+	}
+}
+
 func TestSetProjectArchived_DoesNotMutateOriginal(t *testing.T) {
 	proj := validProjectForArchiving(t)
 

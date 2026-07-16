@@ -69,6 +69,9 @@ func RunAddSlideCommand(input AddSlideCommandInput) (AddSlideCommandResult, erro
   comando pasa `Archived: proj.Archived` al reconstruir el `ProjectInput`
   de guardado, siguiendo la convencion fijada por
   [project-model](./project-model.md).
+- `Runs` (el historial de generaciones de IA) tambien se preserva tal
+  cual, por la misma razon (ver
+  [append-generation-run-usecase](./append-generation-run-usecase.md)).
 - Un error de I/O al guardar se propaga via `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.
 

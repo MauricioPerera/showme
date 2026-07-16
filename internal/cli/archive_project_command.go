@@ -50,6 +50,7 @@ func RunArchiveProjectCommand(input ArchiveProjectCommandInput) (ArchiveProjectC
 			KnowledgePath: updated.KnowledgePath,
 			Version:       updated.Version,
 			Archived:      updated.Archived,
+			Runs:          updated.Runs,
 		},
 	})
 	if err != nil {

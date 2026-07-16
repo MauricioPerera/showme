@@ -66,7 +66,7 @@ func RenameProject(input RenameProjectInput) (path string, report domain.Report,
   `Report`; el archivo origen no se borra.
 - Si el renombrado es valido y no hay colision, se guarda el `Project` con
   el nuevo `Name` (preservando `Deck`, `DesignPath`, `KnowledgePath`,
-  `Version` y `Archived` tal cual) y, si el path cambio, se borra
+  `Version`, `Archived` y `Runs` tal cual) y, si el path cambio, se borra
   `SourcePath`.
 - Un error de I/O al guardar o al borrar el archivo original se propaga
   via `err`.

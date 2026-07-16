@@ -69,6 +69,7 @@ func RunUpdateSlideCommand(input UpdateSlideCommandInput) (UpdateSlideCommandRes
 			KnowledgePath: proj.KnowledgePath,
 			Version:       proj.Version,
 			Archived:      proj.Archived,
+			Runs:          proj.Runs,
 		},
 	})
 	if err != nil {

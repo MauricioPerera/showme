@@ -60,9 +60,9 @@ func RunArchiveProjectCommand(input ArchiveProjectCommandInput) (ArchiveProjectC
   un `err` no nil siempre es un problema de I/O de `storage.LoadProject` o
   `storage.SaveProject`, nunca una validacion.
 - El `Project` actualizado (mismo `Name`, `Deck`, `DesignPath`,
-  `KnowledgePath`, `Version`; `Archived` igual al valor pedido) se guarda
-  con `storage.SaveProject` bajo `OutDir`. Si `OutDir` y `Name` coinciden
-  con el archivo original, esto sobreescribe el mismo archivo.
+  `KnowledgePath`, `Version`, `Runs`; `Archived` igual al valor pedido) se
+  guarda con `storage.SaveProject` bajo `OutDir`. Si `OutDir` y `Name`
+  coinciden con el archivo original, esto sobreescribe el mismo archivo.
 - `OK` es `true` salvo que `storage.SaveProject` reporte un error de
   validacion (en la practica, solo si `Name` produce un slug vacio —
   situacion ya imposible si el proyecto se guardo antes con

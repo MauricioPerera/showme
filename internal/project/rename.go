@@ -45,6 +45,7 @@ func RenameProject(input RenameProjectInput) (string, domain.Report, error) {
 			KnowledgePath: source.KnowledgePath,
 			Version:       source.Version,
 			Archived:      source.Archived,
+			Runs:          source.Runs,
 		},
 	})
 	if err != nil {

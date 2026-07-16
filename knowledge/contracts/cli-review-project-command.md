@@ -67,6 +67,9 @@ func RunReviewProjectCommand(input ReviewProjectCommandInput) (ReviewProjectComm
   el mismo archivo (mismo slug determinista).
 - `Archived` se preserva tal cual estaba (no se resetea a `false`), misma
   convencion que [cli-add-slide-command](./cli-add-slide-command.md).
+- `Runs` (el historial de generaciones de IA) tambien se preserva tal
+  cual, por la misma razon (ver
+  [append-generation-run-usecase](./append-generation-run-usecase.md)).
 - Un error de I/O al guardar (ej. `OutDir` inexistente) se propaga via
   `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.

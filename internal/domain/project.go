@@ -8,10 +8,12 @@ type ProjectInput struct {
 	KnowledgePath string
 	Version       int
 	Archived      bool
+	Runs          []GenerationRun
 }
 
 // Project is the container for a presentation, its identity/knowledge
-// references, its version and its archived state.
+// references, its version, its archived state and its AI generation
+// history.
 type Project struct {
 	Name          string
 	Deck          Deck
@@ -19,6 +21,7 @@ type Project struct {
 	KnowledgePath string
 	Version       int
 	Archived      bool
+	Runs          []GenerationRun
 }
 
 // NewProject builds a Project from input, enforcing its structural invariants.
@@ -52,6 +55,7 @@ func NewProject(input ProjectInput) (Project, Report) {
 		KnowledgePath: input.KnowledgePath,
 		Version:       version,
 		Archived:      input.Archived,
+		Runs:          input.Runs,
 	}
 	return project, report
 }

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/MauricioPerera/showme/internal/ai"
 	"github.com/MauricioPerera/showme/internal/domain"
@@ -61,7 +62,10 @@ func joinConceptBodies(concepts []knowledge.Concept) string {
 // the project's KnowledgePath bundle, queried by the slide's Intent or
 // Title as a fallback), generates its Content with an OpenAIClient
 // (BaseURL/Model), applies it via domain.UpdateSlide (preserving the
-// slide's current Status) and, if valid, saves the updated Project under
+// slide's current Status), records a domain.GenerationRun (with a real
+// timestamp -- this is the one place in the CLI layer allowed to call
+// time.Now(), since domain.NewGenerationRun itself stays pure) in the
+// project's Runs history, and, if valid, saves the updated Project under
 // OutDir.
 //
 // A file-system error loading Path, loading the knowledge bundle, or
@@ -95,11 +99,12 @@ func RunGenerateSlideContentCommand(input GenerateSlideContentCommandInput) (Gen
 		return result, nil
 	}
 
+	context := joinConceptBodies(concepts)
 	client := ai.NewOpenAIClient(input.BaseURL, input.Model)
 	genResult, genReport := ai.GenerateSlideContent(ai.GenerateSlideContentInput{
 		Generator: client,
 		Intent:    slide.Intent,
-		Context:   joinConceptBodies(concepts),
+		Context:   context,
 	})
 	result.Errors = append(result.Errors, genReport.Errors...)
 	result.Warnings = append(result.Warnings, genReport.Warnings...)
@@ -122,6 +127,22 @@ func RunGenerateSlideContentCommand(input GenerateSlideContentCommandInput) (Gen
 		return result, nil
 	}
 
+	run, runReport := domain.NewGenerationRun(domain.GenerationRunInput{
+		SlideID:   slide.ID,
+		Model:     input.Model,
+		Provider:  input.BaseURL,
+		Intent:    slide.Intent,
+		Context:   context,
+		Output:    genResult.Content,
+		Warnings:  result.Warnings,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	})
+	result.Errors = append(result.Errors, runReport.Errors...)
+	if len(result.Errors) != 0 {
+		return result, nil
+	}
+	projWithRun := domain.AppendGenerationRun(domain.AppendGenerationRunInput{Project: proj, Run: run})
+
 	path, saveReport, err := storage.SaveProject(storage.SaveProjectRequest{
 		Dir: input.OutDir,
 		Input: domain.ProjectInput{
@@ -131,6 +152,7 @@ func RunGenerateSlideContentCommand(input GenerateSlideContentCommandInput) (Gen
 			KnowledgePath: proj.KnowledgePath,
 			Version:       proj.Version,
 			Archived:      proj.Archived,
+			Runs:          projWithRun.Runs,
 		},
 	})
 	if err != nil {

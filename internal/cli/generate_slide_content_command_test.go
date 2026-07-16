@@ -92,6 +92,39 @@ func TestRunGenerateSlideContentCommand_Valid(t *testing.T) {
 	}
 }
 
+func TestRunGenerateSlideContentCommand_RecordsGenerationRun(t *testing.T) {
+	dir := t.TempDir()
+	path := saveProjectWithIntentAndKnowledge(t, dir)
+	server := fakeChatServer(t, "Contenido generado.", http.StatusOK)
+	defer server.Close()
+
+	_, err := RunGenerateSlideContentCommand(GenerateSlideContentCommandInput{
+		Path:    path,
+		SlideID: "intro",
+		BaseURL: server.URL,
+		Model:   "test-model",
+		OutDir:  dir,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	updated, loadErr := storage.LoadProject(path)
+	if loadErr != nil {
+		t.Fatalf("unexpected error reloading project: %v", loadErr)
+	}
+	if len(updated.Runs) != 1 {
+		t.Fatalf("expected exactly one recorded run, got %+v", updated.Runs)
+	}
+	run := updated.Runs[0]
+	if run.SlideID != "intro" || run.Model != "test-model" || run.Output != "Contenido generado." {
+		t.Fatalf("expected run to record slide/model/output, got %+v", run)
+	}
+	if run.CreatedAt == "" {
+		t.Fatalf("expected a non-empty CreatedAt timestamp, got %+v", run)
+	}
+}
+
 func TestRunGenerateSlideContentCommand_SlideNotFound(t *testing.T) {
 	dir := t.TempDir()
 	path := saveProjectWithIntentAndKnowledge(t, dir)

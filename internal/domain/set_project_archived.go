@@ -18,5 +18,6 @@ func SetProjectArchived(input SetProjectArchivedInput) Project {
 		KnowledgePath: input.Project.KnowledgePath,
 		Version:       input.Project.Version,
 		Archived:      input.Archived,
+		Runs:          input.Project.Runs,
 	}
 }

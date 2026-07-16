@@ -45,6 +45,7 @@ type ProjectInput struct {
     Deck     Deck
     Version  int
     Archived bool
+    Runs     []GenerationRun
 }
 
 type Project struct {
@@ -52,21 +53,25 @@ type Project struct {
     Deck     Deck
     Version  int
     Archived bool
+    Runs     []GenerationRun
 }
 
 func NewProject(input ProjectInput) (Project, Report)
 ```
 
 `Archived` fue agregado por
-[set-project-archived-usecase](./set-project-archived-usecase.md): no tiene
-invariante propia (un bool no puede ser invalido), se copia tal cual de
-`ProjectInput` a `Project`, y por defecto es `false` cuando el llamador no
-lo especifica. Se incluye en `ProjectInput` (y no solo en `Project`) para
-que los casos de uso que releen y re-guardan un proyecto ya existente
-(`review`, `add-slide`, `remove-slide`, `update-slide`, `reorder-slides`,
-`update-info`) puedan preservarlo pasando `Archived: proj.Archived` — de lo
-contrario, cualquier edicion posterior a un archivado lo resetearia a
-`false` silenciosamente.
+[set-project-archived-usecase](./set-project-archived-usecase.md) y `Runs`
+por [append-generation-run-usecase](./append-generation-run-usecase.md):
+ninguno tiene invariante propia (un bool no puede ser invalido, un slice ya
+construido por `AppendGenerationRun` tampoco), se copian tal cual de
+`ProjectInput` a `Project`, y por defecto son `false`/`nil` cuando el
+llamador no los especifica. Ambos se incluyen en `ProjectInput` (y no solo
+en `Project`) por la misma razon: los casos de uso que releen y re-guardan
+un proyecto ya existente (`review`, `add-slide`, `remove-slide`,
+`update-slide`, `reorder-slides`, `update-info`, `generate-slide`) deben
+preservarlos pasando `Archived: proj.Archived` y `Runs: proj.Runs` — de lo
+contrario, cualquier edicion posterior resetearia el archivado o borraria
+el historial de generaciones silenciosamente.
 
 ## Invariants
 

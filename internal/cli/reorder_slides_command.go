@@ -59,6 +59,7 @@ func RunReorderSlidesCommand(input ReorderSlidesCommandInput) (ReorderSlidesComm
 			KnowledgePath: proj.KnowledgePath,
 			Version:       proj.Version,
 			Archived:      proj.Archived,
+			Runs:          proj.Runs,
 		},
 	})
 	if err != nil {

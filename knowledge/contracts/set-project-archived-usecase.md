@@ -18,7 +18,7 @@ budget:
   params_max: 1
   lines_max: 25
 tests: internal/domain/set_project_archived_test.go
-tests_sha256: "8cf8503296a809dc65e771ece4928e9e667be5af4288dc32c34903e6595fa756"
+tests_sha256: "99ba21edc130195ea690a1b0bc345eee170da4ccea6e4e72a499cd3024d28dba"
 touch_only: ['internal/domain/set_project_archived.go']
 deps_allowed: []
 forbids: ['network', 'subprocess', 'llm']
@@ -52,7 +52,7 @@ func SetProjectArchived(input SetProjectArchivedInput) Project
 
 - Devuelve una copia de `Project` con `Archived` igual al valor dado; todos
   los demas campos (`Name`, `Deck`, `DesignPath`, `KnowledgePath`,
-  `Version`) se preservan tal cual.
+  `Version`, `Runs`) se preservan tal cual.
 - No devuelve `Report`: a diferencia del resto de los constructores del
   dominio, un booleano no tiene valores invalidos, asi que esta operacion
   no puede fallar.
@@ -81,8 +81,8 @@ func SetProjectArchived(input SetProjectArchivedInput) Project
 ## Tests
 
 Los tests estan en `internal/domain/set_project_archived_test.go` y
-cubren: marcar como archivado, desarchivar, y no-mutacion del proyecto
-original.
+cubren: marcar como archivado, desarchivar, preservacion de `Runs`, y
+no-mutacion del proyecto original.
 
 ## Constraints
 
