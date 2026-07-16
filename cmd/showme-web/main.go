@@ -100,6 +100,17 @@ const showPage = `<!doctype html>
     <button type="submit">Archivar</button>
   {{end}}
 </form>
+<form method="post" action="/projects/view/{{.Slug}}/duplicate" style="display:inline">
+  <input type="text" name="new_name" placeholder="Nombre de la copia" required>
+  <button type="submit">Duplicar</button>
+</form>
+<form method="post" action="/projects/view/{{.Slug}}/rename" style="display:inline">
+  <input type="text" name="new_name" placeholder="Nuevo nombre" required>
+  <button type="submit">Renombrar</button>
+</form>
+{{if .Errors}}
+<ul>{{range .Errors}}<li>ERROR: {{.}}</li>{{end}}</ul>
+{{end}}
 <p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
 {{$slug := .Slug}}
 <ul>
@@ -163,6 +174,12 @@ func main() {
 	mux.HandleFunc("POST /projects/view/{slug}/archive", func(w http.ResponseWriter, r *http.Request) {
 		handleArchiveProject(w, r, r.PathValue("slug"), *dir)
 	})
+	mux.HandleFunc("POST /projects/view/{slug}/duplicate", func(w http.ResponseWriter, r *http.Request) {
+		handleDuplicateProject(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("POST /projects/view/{slug}/rename", func(w http.ResponseWriter, r *http.Request) {
+		handleRenameProject(w, r, r.PathValue("slug"), *dir)
+	})
 
 	log.Printf("showme-web listening on %s (data dir: %s)", *addr, *dir)
 	log.Fatal(http.ListenAndServe(*addr, mux))
@@ -201,9 +218,7 @@ func handleListProjects(w http.ResponseWriter, dir string) {
 
 	entries := make([]projectListEntry, len(result.Projects))
 	for i, p := range result.Projects {
-		base := filepath.Base(p.Path)
-		slug := strings.TrimSuffix(base, filepath.Ext(base))
-		entries[i] = projectListEntry{Name: p.Name, Slug: slug, Archived: p.Archived}
+		entries[i] = projectListEntry{Name: p.Name, Slug: slugFromPath(p.Path), Archived: p.Archived}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -229,11 +244,16 @@ func handleShowProject(w http.ResponseWriter, slug, dir string) {
 		return
 	}
 
+	renderShowPage(w, result, slug, nil)
+}
+
+func renderShowPage(w http.ResponseWriter, result cli.ShowProjectCommandResult, slug string, errs []string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	data := struct {
 		cli.ShowProjectCommandResult
-		Slug string
-	}{ShowProjectCommandResult: result, Slug: slug}
+		Slug   string
+		Errors []string
+	}{ShowProjectCommandResult: result, Slug: slug, Errors: errs}
 	if err := showTemplate.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -286,6 +306,79 @@ func handleArchiveProject(w http.ResponseWriter, r *http.Request, slug, dir stri
 	}
 
 	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleDuplicateProject(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunDuplicateProjectCommand(cli.DuplicateProjectCommandInput{
+		SourcePath: path,
+		NewName:    r.FormValue("new_name"),
+		OutDir:     dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	newSlug := slugFromPath(result.Path)
+	http.Redirect(w, r, "/projects/view/"+newSlug, http.StatusFound)
+}
+
+func handleRenameProject(w http.ResponseWriter, r *http.Request, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := cli.RunRenameProjectCommand(cli.RenameProjectCommandInput{
+		SourcePath: path,
+		NewName:    r.FormValue("new_name"),
+		OutDir:     dir,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !result.OK {
+		showResult, showErr := cli.RunShowProjectCommand(cli.ShowProjectCommandInput{Path: path})
+		if showErr != nil {
+			http.Error(w, showErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		renderShowPage(w, showResult, slug, result.Errors)
+		return
+	}
+
+	newSlug := slugFromPath(result.Path)
+	http.Redirect(w, r, "/projects/view/"+newSlug, http.StatusFound)
+}
+
+func slugFromPath(path string) string {
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 func handleExportProject(w http.ResponseWriter, slug, dir string) {
