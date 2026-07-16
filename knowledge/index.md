@@ -48,6 +48,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Caso de uso: crear un Project](./contracts/create-project-usecase.md)
   - [Caso de uso: guardar un Project](./contracts/save-project-usecase.md)
   - [Caso de uso: cargar un Project](./contracts/load-project-usecase.md)
+  - [Caso de uso: duplicar un Project](./contracts/duplicate-project-usecase.md)
   - [Caso de uso: guardar un Deck](./contracts/save-deck-usecase.md)
   - [Caso de uso: cargar un Deck](./contracts/load-deck-usecase.md)
   - [Caso de uso: listar Decks guardados](./contracts/list-decks-usecase.md)
