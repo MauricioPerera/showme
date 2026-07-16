@@ -60,6 +60,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Cliente OpenAI-compatible para generar contenido de slides](./contracts/openai-content-generator-client.md)
   - [CLI: comando project generate-slide](./contracts/cli-generate-slide-content-command.md)
   - [CLI: comando project generate-storyboard](./contracts/cli-generate-storyboard-command.md)
+  - [CLI: comando project generate-all](./contracts/cli-generate-all-slides-command.md)
   - [CLI: comando project create](./contracts/cli-create-project-command.md)
   - [CLI: comando project list](./contracts/cli-list-projects-command.md)
   - [CLI: comando project show](./contracts/cli-show-project-command.md)

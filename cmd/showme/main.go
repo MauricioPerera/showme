@@ -22,6 +22,7 @@ package main
 //	showme project update-info --path <path/to/project.json> --title <title> [--audience <text>] --out <dir> [--json]
 //	showme project generate-slide --path <path/to/project.json> --slide <id> --base-url <ai-base-url> --model <model-name> --out <dir> [--json]
 //	showme project generate-storyboard --objective <text> [--audience <text>] [--knowledge <dir>] --deck-title <title> --count <n> --base-url <ai-base-url> --model <model-name> --out <path/to/deck.json> [--json]
+//	showme project generate-all --path <path/to/project.json> --base-url <ai-base-url> --model <model-name> --out <dir> [--json]
 //	showme project archive --path <path/to/project.json> --out <dir> [--json]
 //	showme project unarchive --path <path/to/project.json> --out <dir> [--json]
 
@@ -49,6 +50,7 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]\n" +
 	"       showme project generate-slide --path <path> --slide <id> --base-url <url> --model <name> --out <dir> [--json]\n" +
 	"       showme project generate-storyboard --objective <text> [--audience <text>] [--knowledge <dir>] --deck-title <title> --count <n> --base-url <url> --model <name> --out <deck.json> [--json]\n" +
+	"       showme project generate-all --path <path> --base-url <url> --model <name> --out <dir> [--json]\n" +
 	"       showme project archive --path <path> --out <dir> [--json]\n" +
 	"       showme project unarchive --path <path> --out <dir> [--json]"
 
@@ -87,6 +89,8 @@ func main() {
 		runGenerateSlide(os.Args[3:])
 	case "generate-storyboard":
 		runGenerateStoryboard(os.Args[3:])
+	case "generate-all":
+		runGenerateAll(os.Args[3:])
 	case "archive":
 		runArchive(os.Args[3:], true)
 	case "unarchive":
@@ -584,6 +588,40 @@ func runGenerateStoryboard(args []string) {
 	} else if result.OK {
 		fmt.Printf("OK: saved to %s\n", result.Path)
 	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runGenerateAll(args []string) {
+	fs := flag.NewFlagSet("project generate-all", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	baseURL := fs.String("base-url", "", "base URL of the OpenAI-compatible AI provider")
+	model := fs.String("model", "", "model name to request from the AI provider")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunGenerateAllSlidesCommand(cli.GenerateAllSlidesCommandInput{
+		Path:    *path,
+		BaseURL: *baseURL,
+		Model:   *model,
+		OutDir:  *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else {
+		fmt.Printf("generated: %v\nskipped: %v\n", result.Generated, result.Skipped)
 		for _, e := range result.Errors {
 			fmt.Printf("ERROR: %s\n", e)
 		}
