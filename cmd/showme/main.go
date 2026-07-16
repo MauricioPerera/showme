@@ -13,6 +13,7 @@ package main
 //	showme project show --path <path/to/project.json> [--json]
 //	showme project duplicate --source <path/to/project.json> --name <new-name> --out <dir> [--json]
 //	showme project review --path <path/to/project.json> --slide <id> --decision <accepted|edited|rejected> [--notes <text>] --out <dir> [--json]
+//	showme project add-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 
 import (
 	"encoding/json"
@@ -27,7 +28,8 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project list --dir <dir> [--json]\n" +
 	"       showme project show --path <path> [--json]\n" +
 	"       showme project duplicate --source <path> --name <new-name> --out <dir> [--json]\n" +
-	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]"
+	"       showme project review --path <path> --slide <id> --decision <decision> [--notes <text>] --out <dir> [--json]\n" +
+	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -46,6 +48,8 @@ func main() {
 		runDuplicate(os.Args[3:])
 	case "review":
 		runReview(os.Args[3:])
+	case "add-slide":
+		runAddSlide(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -192,6 +196,47 @@ func runReview(args []string) {
 		Decision: *decision,
 		Notes:    *notes,
 		OutDir:   *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runAddSlide(args []string) {
+	fs := flag.NewFlagSet("project add-slide", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	slide := fs.String("slide", "", "id for the new slide")
+	title := fs.String("title", "", "title for the new slide")
+	intent := fs.String("intent", "", "optional intent for the new slide")
+	content := fs.String("content", "", "optional content for the new slide")
+	status := fs.String("status", "", "optional status for the new slide (defaults to draft)")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunAddSlideCommand(cli.AddSlideCommandInput{
+		Path:    *path,
+		SlideID: *slide,
+		Title:   *title,
+		Intent:  *intent,
+		Content: *content,
+		Status:  *status,
+		OutDir:  *out,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
