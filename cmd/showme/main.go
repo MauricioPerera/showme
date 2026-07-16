@@ -20,6 +20,7 @@ package main
 //	showme project update-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 //	showme project reorder-slides --path <path/to/project.json> --order <id1,id2,...> --out <dir> [--json]
 //	showme project update-info --path <path/to/project.json> --title <title> [--audience <text>] --out <dir> [--json]
+//	showme project generate-slide --path <path/to/project.json> --slide <id> --base-url <ai-base-url> --model <model-name> --out <dir> [--json]
 //	showme project archive --path <path/to/project.json> --out <dir> [--json]
 //	showme project unarchive --path <path/to/project.json> --out <dir> [--json]
 
@@ -45,6 +46,7 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project update-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
 	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]\n" +
 	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]\n" +
+	"       showme project generate-slide --path <path> --slide <id> --base-url <url> --model <name> --out <dir> [--json]\n" +
 	"       showme project archive --path <path> --out <dir> [--json]\n" +
 	"       showme project unarchive --path <path> --out <dir> [--json]"
 
@@ -79,6 +81,8 @@ func main() {
 		runReorderSlides(os.Args[3:])
 	case "update-info":
 		runUpdateDeckInfo(os.Args[3:])
+	case "generate-slide":
+		runGenerateSlide(os.Args[3:])
 	case "archive":
 		runArchive(os.Args[3:], true)
 	case "unarchive":
@@ -491,6 +495,43 @@ func runUpdateDeckInfo(args []string) {
 		printJSON(result)
 	} else if result.OK {
 		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runGenerateSlide(args []string) {
+	fs := flag.NewFlagSet("project generate-slide", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	slide := fs.String("slide", "", "id of the slide to generate content for")
+	baseURL := fs.String("base-url", "", "base URL of the OpenAI-compatible AI provider")
+	model := fs.String("model", "", "model name to request from the AI provider")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunGenerateSlideContentCommand(cli.GenerateSlideContentCommandInput{
+		Path:    *path,
+		SlideID: *slide,
+		BaseURL: *baseURL,
+		Model:   *model,
+		OutDir:  *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n\n%s\n", result.Path, result.Content)
 	} else {
 		for _, e := range result.Errors {
 			fmt.Printf("ERROR: %s\n", e)
