@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	"github.com/MauricioPerera/showme/internal/cli"
+	"github.com/MauricioPerera/showme/internal/export"
+	"github.com/MauricioPerera/showme/internal/storage"
 	"github.com/MauricioPerera/showme/internal/web"
 )
 
@@ -88,6 +90,7 @@ const showPage = `<!doctype html>
 <body>
 <h1>{{.Project.Name}} (v{{.Project.Version}}){{if .Project.Archived}} [archived]{{end}}</h1>
 <p><a href="/projects">&larr; Volver</a></p>
+<p><a href="/projects/view/{{.Slug}}/export">Exportar a HTML</a></p>
 <p>Objetivo/audiencia: {{.Project.Deck.Audience}}</p>
 {{$slug := .Slug}}
 <ul>
@@ -144,6 +147,9 @@ func main() {
 	})
 	mux.HandleFunc("POST /projects/view/{slug}/review", func(w http.ResponseWriter, r *http.Request) {
 		handleReviewSlide(w, r, r.PathValue("slug"), *dir)
+	})
+	mux.HandleFunc("GET /projects/view/{slug}/export", func(w http.ResponseWriter, r *http.Request) {
+		handleExportProject(w, r.PathValue("slug"), *dir)
 	})
 
 	log.Printf("showme-web listening on %s (data dir: %s)", *addr, *dir)
@@ -244,6 +250,26 @@ func handleReviewSlide(w http.ResponseWriter, r *http.Request, slug, dir string)
 	}
 
 	http.Redirect(w, r, "/projects/view/"+slug, http.StatusFound)
+}
+
+func handleExportProject(w http.ResponseWriter, slug, dir string) {
+	path, err := web.ProjectFilePath(dir, slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	proj, err := storage.LoadProject(path)
+	if err != nil {
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	rendered := export.ExportProjectHTML(proj)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+slug+`.html"`)
+	_, _ = w.Write([]byte(rendered))
 }
 
 func renderForm(w http.ResponseWriter, result *web.CreateProjectFormResult) {
