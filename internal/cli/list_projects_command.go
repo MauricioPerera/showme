@@ -12,10 +12,11 @@ type ListProjectsCommandInput struct {
 	Dir string
 }
 
-// ProjectSummary is the name and path of one saved project.
+// ProjectSummary is the name, path and archived state of one saved project.
 type ProjectSummary struct {
-	Name string
-	Path string
+	Name     string
+	Path     string
+	Archived bool
 }
 
 // ListProjectsCommandResult is the JSON-stable result of running the
@@ -44,7 +45,7 @@ func RunListProjectsCommand(input ListProjectsCommandInput) (ListProjectsCommand
 			result.Errors = append(result.Errors, fmt.Sprintf("%s: %s", path, loadErr))
 			continue
 		}
-		result.Projects = append(result.Projects, ProjectSummary{Name: proj.Name, Path: path})
+		result.Projects = append(result.Projects, ProjectSummary{Name: proj.Name, Path: path, Archived: proj.Archived})
 	}
 
 	return result, nil

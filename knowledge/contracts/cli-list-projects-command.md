@@ -18,7 +18,7 @@ budget:
   params_max: 1
   lines_max: 80
 tests: internal/cli/list_projects_command_test.go
-tests_sha256: "a7e2f1e8056509098b3229e61d8662079d33a289ff47f9345cc32a8033b68ad5"
+tests_sha256: "82c497ef42a6e1d0259ae165c9e29d48ae454f84ab6d927b04a5ea0dae23e083"
 touch_only: ['internal/cli/list_projects_command.go']
 deps_allowed: []
 forbids: ['network', 'subprocess', 'llm']
@@ -44,6 +44,7 @@ type ListProjectsCommandInput struct {
 
 type ProjectSummary struct {
     Name, Path string
+    Archived   bool
 }
 
 type ListProjectsCommandResult struct {
@@ -59,7 +60,8 @@ func RunListProjectsCommand(input ListProjectsCommandInput) (ListProjectsCommand
 - `Dir` inexistente se propaga como `err` (via `storage.ListDecks`); el
   resultado queda en su valor cero.
 - Cada archivo `.json` de `Dir` que `storage.LoadProject` puede leer
-  aparece en `Projects` con su `Name` y su `Path` completo.
+  aparece en `Projects` con su `Name`, su `Path` completo y su `Archived`
+  (ver [set-project-archived-usecase](./set-project-archived-usecase.md)).
 - Un archivo que falla al cargar (JSON invalido, por ejemplo) NO aborta el
   comando: se omite de `Projects` y se agrega a `Errors` como
   `"<path>: <error subyacente>"`, para que un archivo roto no oculte el
@@ -92,8 +94,9 @@ func RunListProjectsCommand(input ListProjectsCommandInput) (ListProjectsCommand
 ## Tests
 
 Los tests estan en `internal/cli/list_projects_command_test.go` y cubren:
-listado con nombres y rutas correctos, directorio vacio, directorio
-inexistente, y un archivo illegible que se omite sin abortar el listado.
+listado con nombres y rutas correctos, reflejo del estado `Archived`,
+directorio vacio, directorio inexistente, y un archivo illegible que se
+omite sin abortar el listado.
 
 ## Constraints
 

@@ -18,6 +18,8 @@ package main
 //	showme project update-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 //	showme project reorder-slides --path <path/to/project.json> --order <id1,id2,...> --out <dir> [--json]
 //	showme project update-info --path <path/to/project.json> --title <title> [--audience <text>] --out <dir> [--json]
+//	showme project archive --path <path/to/project.json> --out <dir> [--json]
+//	showme project unarchive --path <path/to/project.json> --out <dir> [--json]
 
 import (
 	"encoding/json"
@@ -38,7 +40,9 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project remove-slide --path <path> --slide <id> --out <dir> [--json]\n" +
 	"       showme project update-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
 	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]\n" +
-	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]"
+	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]\n" +
+	"       showme project archive --path <path> --out <dir> [--json]\n" +
+	"       showme project unarchive --path <path> --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -67,6 +71,10 @@ func main() {
 		runReorderSlides(os.Args[3:])
 	case "update-info":
 		runUpdateDeckInfo(os.Args[3:])
+	case "archive":
+		runArchive(os.Args[3:], true)
+	case "unarchive":
+		runArchive(os.Args[3:], false)
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -131,7 +139,11 @@ func runList(args []string) {
 	}
 
 	for _, p := range result.Projects {
-		fmt.Printf("%s\t%s\n", p.Name, p.Path)
+		archivedMark := ""
+		if p.Archived {
+			archivedMark = " [archived]"
+		}
+		fmt.Printf("%s\t%s%s\n", p.Name, p.Path, archivedMark)
 	}
 	for _, e := range result.Errors {
 		fmt.Printf("ERROR: %s\n", e)
@@ -156,7 +168,11 @@ func runShow(args []string) {
 	}
 
 	proj := result.Project
-	fmt.Printf("%s (v%d)\n", proj.Name, proj.Version)
+	archivedMark := ""
+	if proj.Archived {
+		archivedMark = " [archived]"
+	}
+	fmt.Printf("%s (v%d)%s\n", proj.Name, proj.Version, archivedMark)
 	fmt.Printf("design: %s\n", proj.DesignPath)
 	fmt.Printf("knowledge: %s\n", proj.KnowledgePath)
 	for _, s := range proj.Deck.Slides {
@@ -400,6 +416,42 @@ func runUpdateDeckInfo(args []string) {
 		Path:     *path,
 		Title:    *title,
 		Audience: *audience,
+		OutDir:   *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runArchive(args []string, archived bool) {
+	name := "project archive"
+	if !archived {
+		name = "project unarchive"
+	}
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunArchiveProjectCommand(cli.ArchiveProjectCommandInput{
+		Path:     *path,
+		Archived: archived,
 		OutDir:   *out,
 	})
 	if err != nil {

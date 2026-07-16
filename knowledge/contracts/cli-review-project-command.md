@@ -61,10 +61,12 @@ func RunReviewProjectCommand(input ReviewProjectCommandInput) (ReviewProjectComm
   `Path: ""` y esos errores en `Errors` — el proyecto en disco NO se
   toca.
 - Si la review es valida, el `Project` actualizado (mismo `Name`,
-  `DesignPath`, `KnowledgePath`, `Version`; `Deck` con la slide
-  actualizada) se guarda con `storage.SaveProject` bajo `OutDir`. Si
+  `DesignPath`, `KnowledgePath`, `Version`, `Archived`; `Deck` con la
+  slide actualizada) se guarda con `storage.SaveProject` bajo `OutDir`. Si
   `OutDir` y `Name` coinciden con el archivo original, esto sobreescribe
   el mismo archivo (mismo slug determinista).
+- `Archived` se preserva tal cual estaba (no se resetea a `false`), misma
+  convencion que [cli-add-slide-command](./cli-add-slide-command.md).
 - Un error de I/O al guardar (ej. `OutDir` inexistente) se propaga via
   `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.

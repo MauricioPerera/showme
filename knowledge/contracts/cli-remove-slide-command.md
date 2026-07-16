@@ -59,9 +59,12 @@ func RunRemoveSlideCommand(input RemoveSlideCommandInput) (RemoveSlideCommandRes
   `deck must have at least one slide`), el resultado tiene `OK: false`,
   `Path: ""` y esos errores en `Errors` — el proyecto en disco NO se toca.
 - Si la remocion es valida, el `Project` actualizado (mismo `Name`,
-  `DesignPath`, `KnowledgePath`, `Version`; `Deck` sin la slide quitada) se
-  guarda con `storage.SaveProject` bajo `OutDir`. Si `OutDir` y `Name`
-  coinciden con el archivo original, esto sobreescribe el mismo archivo.
+  `DesignPath`, `KnowledgePath`, `Version`, `Archived`; `Deck` sin la slide
+  quitada) se guarda con `storage.SaveProject` bajo `OutDir`. Si `OutDir` y
+  `Name` coinciden con el archivo original, esto sobreescribe el mismo
+  archivo.
+- `Archived` se preserva tal cual estaba (no se resetea a `false`), misma
+  convencion que [cli-add-slide-command](./cli-add-slide-command.md).
 - Un error de I/O al guardar se propaga via `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.
 

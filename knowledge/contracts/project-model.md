@@ -42,18 +42,31 @@ vacio.
 ```go
 type ProjectInput struct {
     Name, DesignPath, KnowledgePath string
-    Deck    Deck
-    Version int
+    Deck     Deck
+    Version  int
+    Archived bool
 }
 
 type Project struct {
     Name, DesignPath, KnowledgePath string
-    Deck    Deck
-    Version int
+    Deck     Deck
+    Version  int
+    Archived bool
 }
 
 func NewProject(input ProjectInput) (Project, Report)
 ```
+
+`Archived` fue agregado por
+[set-project-archived-usecase](./set-project-archived-usecase.md): no tiene
+invariante propia (un bool no puede ser invalido), se copia tal cual de
+`ProjectInput` a `Project`, y por defecto es `false` cuando el llamador no
+lo especifica. Se incluye en `ProjectInput` (y no solo en `Project`) para
+que los casos de uso que releen y re-guardan un proyecto ya existente
+(`review`, `add-slide`, `remove-slide`, `update-slide`, `reorder-slides`,
+`update-info`) puedan preservarlo pasando `Archived: proj.Archived` — de lo
+contrario, cualquier edicion posterior a un archivado lo resetearia a
+`false` silenciosamente.
 
 ## Invariants
 

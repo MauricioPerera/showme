@@ -60,6 +60,27 @@ func TestRunListProjectsCommand_ReturnsNamesAndPaths(t *testing.T) {
 	}
 }
 
+func TestRunListProjectsCommand_ReflectsArchivedState(t *testing.T) {
+	dir := t.TempDir()
+	path := saveNamedProject(t, dir, "Roadmap Q3")
+
+	archiveResult, err := RunArchiveProjectCommand(ArchiveProjectCommandInput{
+		Path: path, Archived: true, OutDir: dir,
+	})
+	if err != nil || !archiveResult.OK {
+		t.Fatalf("setup: unexpected archive failure: err=%v result=%+v", err, archiveResult)
+	}
+
+	result, err := RunListProjectsCommand(ListProjectsCommandInput{Dir: dir})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Projects) != 1 || !result.Projects[0].Archived {
+		t.Fatalf("expected the listed project to be archived, got %+v", result.Projects)
+	}
+}
+
 func TestRunListProjectsCommand_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 

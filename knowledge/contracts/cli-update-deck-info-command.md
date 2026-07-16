@@ -60,10 +60,12 @@ func RunUpdateDeckInfoCommand(input UpdateDeckInfoCommandInput) (UpdateDeckInfoC
   vacio, el resultado tiene `OK: false`, `Path: ""` y `Errors` incluye
   `title is required` — el proyecto en disco NO se toca.
 - Si es valida, el `Project` actualizado (mismo `Name`, `DesignPath`,
-  `KnowledgePath`, `Version`, `Deck.Slides`; `Deck.Title`/`Deck.Audience`
-  reemplazados) se guarda con `storage.SaveProject` bajo `OutDir`. Si
-  `OutDir` y `Name` coinciden con el archivo original, esto sobreescribe
-  el mismo archivo.
+  `KnowledgePath`, `Version`, `Archived`, `Deck.Slides`;
+  `Deck.Title`/`Deck.Audience` reemplazados) se guarda con
+  `storage.SaveProject` bajo `OutDir`. Si `OutDir` y `Name` coinciden con
+  el archivo original, esto sobreescribe el mismo archivo.
+- `Archived` se preserva tal cual estaba (no se resetea a `false`), misma
+  convencion que [cli-add-slide-command](./cli-add-slide-command.md).
 - Un error de I/O al guardar se propaga via `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.
 

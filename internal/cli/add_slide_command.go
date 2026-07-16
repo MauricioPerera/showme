@@ -68,6 +68,7 @@ func RunAddSlideCommand(input AddSlideCommandInput) (AddSlideCommandResult, erro
 			DesignPath:    proj.DesignPath,
 			KnowledgePath: proj.KnowledgePath,
 			Version:       proj.Version,
+			Archived:      proj.Archived,
 		},
 	})
 	if err != nil {

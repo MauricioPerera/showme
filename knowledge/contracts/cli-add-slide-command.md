@@ -18,7 +18,7 @@ budget:
   params_max: 1
   lines_max: 100
 tests: internal/cli/add_slide_command_test.go
-tests_sha256: "da2fc27b51f7aea5084cb2c85931065e9ea3102d5ebc3c4c43b5af5fec34ca7a"
+tests_sha256: "b8464fd974d87237fbbcc735fb0f429530d5e8ba8f08244554a87cedb07d5827"
 touch_only: ['internal/cli/add_slide_command.go']
 deps_allowed: []
 forbids: ['network', 'subprocess', 'llm']
@@ -61,10 +61,14 @@ func RunAddSlideCommand(input AddSlideCommandInput) (AddSlideCommandResult, erro
   status invalido), el resultado tiene `OK: false`, `Path: ""` y esos
   errores en `Errors` — el proyecto en disco NO se toca.
 - Si la slide es valida, el `Project` actualizado (mismo `Name`,
-  `DesignPath`, `KnowledgePath`, `Version`; `Deck` con la slide nueva al
-  final) se guarda con `storage.SaveProject` bajo `OutDir`. Si `OutDir` y
-  `Name` coinciden con el archivo original, esto sobreescribe el mismo
-  archivo.
+  `DesignPath`, `KnowledgePath`, `Version`, `Archived`; `Deck` con la slide
+  nueva al final) se guarda con `storage.SaveProject` bajo `OutDir`. Si
+  `OutDir` y `Name` coinciden con el archivo original, esto sobreescribe el
+  mismo archivo.
+- `Archived` se preserva tal cual estaba (no se resetea a `false`): este
+  comando pasa `Archived: proj.Archived` al reconstruir el `ProjectInput`
+  de guardado, siguiendo la convencion fijada por
+  [project-model](./project-model.md).
 - Un error de I/O al guardar se propaga via `err`.
 - No hace red, subprocess ni llamadas a un proveedor de IA.
 
@@ -92,8 +96,9 @@ func RunAddSlideCommand(input AddSlideCommandInput) (AddSlideCommandResult, erro
 ## Tests
 
 Los tests estan en `internal/cli/add_slide_command_test.go` y cubren:
-slide valida que persiste el cambio en el mismo archivo, id duplicado, y
-archivo origen inexistente.
+slide valida que persiste el cambio en el mismo archivo, id duplicado,
+preservacion de `Archived` a traves de la edicion, y archivo origen
+inexistente.
 
 ## Constraints
 

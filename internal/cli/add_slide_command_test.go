@@ -59,6 +59,36 @@ func TestRunAddSlideCommand_DuplicateID(t *testing.T) {
 	}
 }
 
+func TestRunAddSlideCommand_PreservesArchivedFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := saveNamedProject(t, dir, "Roadmap Q3")
+
+	archiveResult, err := RunArchiveProjectCommand(ArchiveProjectCommandInput{
+		Path: path, Archived: true, OutDir: dir,
+	})
+	if err != nil || !archiveResult.OK {
+		t.Fatalf("setup: unexpected archive failure: err=%v result=%+v", err, archiveResult)
+	}
+
+	result, err := RunAddSlideCommand(AddSlideCommandInput{
+		Path: path, SlideID: "closing", Title: "Cierre", OutDir: dir,
+	})
+	if err != nil || !result.OK {
+		t.Fatalf("unexpected AddSlide failure: err=%v result=%+v", err, result)
+	}
+
+	updated, loadErr := storage.LoadProject(path)
+	if loadErr != nil {
+		t.Fatalf("unexpected error reloading project: %v", loadErr)
+	}
+	if !updated.Archived {
+		t.Fatalf("expected Archived preserved through add-slide, got %+v", updated)
+	}
+	if len(updated.Deck.Slides) != 2 {
+		t.Fatalf("expected new slide still appended, got %+v", updated.Deck.Slides)
+	}
+}
+
 func TestRunAddSlideCommand_MissingSource(t *testing.T) {
 	dir := t.TempDir()
 
