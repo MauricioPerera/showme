@@ -43,5 +43,7 @@ Bienvenido a la base de conocimiento del proyecto. El formato de los nodos está
   - [Selector Go de contexto de diapositiva](./contracts/context-selector.md)
   - [Modelo de dominio Deck/Slide](./contracts/deck-slide-model.md)
   - [Caso de uso: guardar un Deck](./contracts/save-deck-usecase.md)
+  - [Caso de uso: cargar un Deck](./contracts/load-deck-usecase.md)
+  - [Caso de uso: listar Decks guardados](./contracts/list-decks-usecase.md)
   - [Exportador de contratos para el gate CCDD Nivel 2](./contracts/export-gate-contract.md)
   - [Regla de contexto presupuestado en las reglas de agentes](./contracts/agents-context-rule.md)
