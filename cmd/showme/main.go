@@ -17,6 +17,7 @@ package main
 //	showme project remove-slide --path <path/to/project.json> --slide <id> --out <dir> [--json]
 //	showme project update-slide --path <path/to/project.json> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]
 //	showme project reorder-slides --path <path/to/project.json> --order <id1,id2,...> --out <dir> [--json]
+//	showme project update-info --path <path/to/project.json> --title <title> [--audience <text>] --out <dir> [--json]
 
 import (
 	"encoding/json"
@@ -36,7 +37,8 @@ const usage = "usage: showme project create --name <name> --design <path> --know
 	"       showme project add-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
 	"       showme project remove-slide --path <path> --slide <id> --out <dir> [--json]\n" +
 	"       showme project update-slide --path <path> --slide <id> --title <title> [--intent <text>] [--content <text>] [--status <status>] --out <dir> [--json]\n" +
-	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]"
+	"       showme project reorder-slides --path <path> --order <id1,id2,...> --out <dir> [--json]\n" +
+	"       showme project update-info --path <path> --title <title> [--audience <text>] --out <dir> [--json]"
 
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "project" {
@@ -63,6 +65,8 @@ func main() {
 		runUpdateSlide(os.Args[3:])
 	case "reorder-slides":
 		runReorderSlides(os.Args[3:])
+	case "update-info":
+		runUpdateDeckInfo(os.Args[3:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -362,6 +366,41 @@ func runReorderSlides(args []string) {
 		Path:   *path,
 		Order:  orderList,
 		OutDir: *out,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if *asJSON {
+		printJSON(result)
+	} else if result.OK {
+		fmt.Printf("OK: saved to %s\n", result.Path)
+	} else {
+		for _, e := range result.Errors {
+			fmt.Printf("ERROR: %s\n", e)
+		}
+	}
+
+	if !result.OK {
+		os.Exit(1)
+	}
+}
+
+func runUpdateDeckInfo(args []string) {
+	fs := flag.NewFlagSet("project update-info", flag.ExitOnError)
+	path := fs.String("path", "", "path to the project to update")
+	title := fs.String("title", "", "new title for the deck")
+	audience := fs.String("audience", "", "new audience for the deck")
+	out := fs.String("out", "", "directory to save the updated project")
+	asJSON := fs.Bool("json", false, "emit JSON instead of human-readable output")
+	_ = fs.Parse(args)
+
+	result, err := cli.RunUpdateDeckInfoCommand(cli.UpdateDeckInfoCommandInput{
+		Path:     *path,
+		Title:    *title,
+		Audience: *audience,
+		OutDir:   *out,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
